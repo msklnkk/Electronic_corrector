@@ -1,2 +1,2 @@
-import GostInspectorApp from "./pages/Welcome";
-export default GostInspectorApp;
+import Welcome from "./pages/Welcome";
+export default Welcome;
