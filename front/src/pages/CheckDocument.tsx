@@ -1,0 +1,100 @@
+// src/pages/CheckDocument.tsx
+import React, { useState } from "react";
+import {
+  Container,
+  Stack,
+  Paper,
+  Typography,
+  Button,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Box,
+} from "@mui/material";
+import {
+  UploadFile,
+  CheckCircle,
+  Warning,
+  ErrorOutline,
+  InfoOutlined,
+} from "@mui/icons-material";
+
+const CheckDocumentPage: React.FC = () => {
+  const [selectedType] = useState("gost");
+
+  return (
+    <>
+      <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
+          {/* Левая часть */}
+          <Stack flex={2} spacing={3}>
+            <Paper variant="outlined" sx={{ p: 4, textAlign: "center", borderStyle: "dashed" }}>
+              <UploadFile sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                Перетащите PDF или DOCX
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+                или нажмите для выбора файла <br /> Максимальный размер: 50 МБ
+              </Typography>
+              <Button variant="contained" color="primary">
+                Выбрать файл
+              </Button>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 4 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Тип проверки</Typography>
+              <RadioGroup value={selectedType}>
+                <FormControlLabel value="gost" control={<Radio color="primary" />} label="ГОСТ — проверка по государственным стандартам" />
+                <FormControlLabel value="internal" control={<Radio color="primary" />} label="Внутренний стандарт — корпоративные требования" />
+                <FormControlLabel value="custom" control={<Radio color="primary" />} label="Пользовательский шаблон — настраиваемые правила" />
+              </RadioGroup>
+            </Paper>
+
+            <Box textAlign="center">
+              <Button variant="contained" color="primary" size="large" sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}>
+                Начать проверку
+              </Button>
+            </Box>
+          </Stack>
+
+          {/* Правая часть */}
+          <Stack flex={1} spacing={3}>
+            <Paper sx={{ p: 3, borderRadius: "12px" }}>
+              <Typography variant="h6" gutterBottom>Пример отчёта</Typography>
+              <LinearProgress variant="determinate" value={85} sx={{ height: 10, borderRadius: 5, mb: 2 }} />
+              <Typography sx={{ fontWeight: 600, textAlign: "right" }}>8.5/10</Typography>
+              <List dense>
+                <ListItem><ListItemIcon><CheckCircle color="success" /></ListItemIcon><ListItemText primary="Структура — Отлично" /></ListItem>
+                <ListItem><ListItemIcon><Warning color="warning" /></ListItemIcon><ListItemText primary="Оформление — Требует внимания" /></ListItem>
+                <ListItem><ListItemIcon><CheckCircle color="success" /></ListItemIcon><ListItemText primary="Содержание — Соответствует" /></ListItem>
+                <ListItem><ListItemIcon><ErrorOutline color="error" /></ListItemIcon><ListItemText primary="Библиография — Ошибки" /></ListItem>
+              </List>
+            </Paper>
+
+            <Paper sx={{ p: 3, borderRadius: "12px" }}>
+              <Typography variant="h6" gutterBottom>Советы</Typography>
+              <List dense>
+                <ListItem><ListItemIcon><InfoOutlined color="primary" /></ListItemIcon><ListItemText primary="Убедитесь, что документ содержит все обязательные разделы" /></ListItem>
+                <ListItem><ListItemIcon><InfoOutlined color="primary" /></ListItemIcon><ListItemText primary="Проверьте правильность оформления списка литературы" /></ListItem>
+                <ListItem><ListItemIcon><InfoOutlined color="primary" /></ListItemIcon><ListItemText primary="Используйте единый стиль форматирования заголовков" /></ListItem>
+              </List>
+            </Paper>
+          </Stack>
+        </Stack>
+      </Container>
+
+      <Box sx={{ textAlign: "center", py: 3, borderTop: 1, borderColor: "divider" }}>
+        <Typography variant="body2" color="text.secondary">
+          © 2025 Электронный корректор. Все права защищены.
+        </Typography>
+      </Box>
+    </>
+  );
+};
+
+export default CheckDocumentPage;
