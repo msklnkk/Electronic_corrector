@@ -25,7 +25,12 @@ import {
 } from "@mui/icons-material";
 
 const CheckDocumentPage: React.FC = () => {
-  const [selectedType] = useState("gost");
+  // Состояние для выбора типа проверки
+  const [selectedType, setSelectedType] = useState("gost");
+
+  const handleTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedType(event.target.value);
+  };
 
   return (
     <>
@@ -46,17 +51,35 @@ const CheckDocumentPage: React.FC = () => {
               </Button>
             </Paper>
 
+            {/* ТИП ПРОВЕРКИ — РАБОЧИЙ */}
             <Paper variant="outlined" sx={{ p: 4 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Тип проверки</Typography>
-              <RadioGroup value={selectedType}>
-                <FormControlLabel value="gost" control={<Radio color="primary" />} label="ГОСТ — проверка по государственным стандартам" />
-                <FormControlLabel value="internal" control={<Radio color="primary" />} label="Внутренний стандарт — корпоративные требования" />
-                <FormControlLabel value="custom" control={<Radio color="primary" />} label="Пользовательский шаблон — настраиваемые правила" />
+              <RadioGroup value={selectedType} onChange={handleTypeChange}>
+                <FormControlLabel
+                  value="gost"
+                  control={<Radio color="primary" />}
+                  label="ГОСТ — проверка по государственным стандартам"
+                />
+                <FormControlLabel
+                  value="internal"
+                  control={<Radio color="primary" />}
+                  label="Внутренний стандарт — корпоративные требования"
+                />
+                <FormControlLabel
+                  value="custom"
+                  control={<Radio color="primary" />}
+                  label="Пользовательский шаблон — настраиваемые правила"
+                />
               </RadioGroup>
             </Paper>
 
             <Box textAlign="center">
-              <Button variant="contained" color="primary" size="large" sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}
+              >
                 Начать проверку
               </Button>
             </Box>

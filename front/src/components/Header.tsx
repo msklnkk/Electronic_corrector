@@ -8,7 +8,7 @@ import {
   Stack,
   Box,
 } from "@mui/material";
-import { LightMode, DarkMode } from "@mui/icons-material";
+import { LightMode, DarkMode, Telegram } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface HeaderProps {
@@ -141,6 +141,19 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
           >
             Войти
           </Button>
+          <IconButton
+            component="a"
+            href="https://t.me/elecrtonic_corrector"
+            target="_blank"
+            rel="noopener"
+            sx={{
+              bgcolor: "rgba(255,255,255,0.1)",
+              "&:hover": { bgcolor: "rgba(255,255,255,0.2)" },
+              ml: 1,
+            }}
+          >
+            <Telegram sx={{ color: "#229ED9" }} />
+          </IconButton>
         </Stack>
       </Toolbar>
     </AppBar>
