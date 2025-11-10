@@ -1,5 +1,5 @@
 from sqlalchemy import String, ForeignKey, Integer, DateTime, \
-    Boolean, Text
+    Boolean, Text, false
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 from project.infrastructure.postgres.database import Base
@@ -13,6 +13,7 @@ class Users(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class Documents(Base):

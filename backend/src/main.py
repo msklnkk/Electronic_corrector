@@ -4,6 +4,7 @@ import uvicorn
 
 from fastapi import FastAPI
 
+from project.api.auth_routes import auth_router
 from project.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,10 @@ def create_app() -> FastAPI:
     #     allow_methods=["*"],
     #     allow_headers=["*"],
     # )
+
+
+    app.include_router(auth_router, tags=["Auth"])
+
 
     return app
 
