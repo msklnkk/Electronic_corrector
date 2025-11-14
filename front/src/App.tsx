@@ -5,6 +5,9 @@ import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Welcome from "./pages/Welcome";
 import CheckDocumentPage from "./pages/CheckDocument";
+import Login from "./pages/Login"; // ДОБАВИЛ
+import { ProtectedRoute } from "./components/ProtectedRoute"; // ДОБАВИЛ
+
 
 function App() {
   const [mode, setMode] = useState<"light" | "dark">("dark");
@@ -41,7 +44,16 @@ function App() {
       <Header mode={mode} onThemeToggle={handleThemeToggle} />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route path="/check" element={<CheckDocumentPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/check"
+          element={
+            <ProtectedRoute>
+              <CheckDocumentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Welcome />} />
       </Routes>
     </ThemeProvider>
   );
