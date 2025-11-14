@@ -8,7 +8,7 @@ from jose import jwt
 from sqlalchemy import select
 
 from project.infrastructure.postgres.database import database
-from project.infrastructure.postgres.models import Users
+from project.infrastructure.postgres.models import User
 from project.resource.auth import verify_password, get_password_hash
 from project.schemas.auth import Token, AuthCredential
 from project.core.config import settings
@@ -27,7 +27,7 @@ async def register(user: AuthCredential) -> Token:
     logger.debug(f"Попытка регистрации нового пользователя: {user.login}")
     async with database.session() as session:
         # Проверяем, существует ли пользователь с такой почтой
-        result = await session.execute(select(Users).where(Users.email == user.login))
+        result = await session.execute(select(User).where(User.email == user.login))
         existing_user = result.scalars().first()
         if existing_user:
             logger.warning(f"Попытка регистрации с существующей почтой: {user.login}")
@@ -37,7 +37,7 @@ async def register(user: AuthCredential) -> Token:
             )
 
         # Создаем нового пользователя
-        db_user = Users(
+        db_user = User(
             name=user.login,
             email=user.login,
             password=get_password_hash(user.password),
@@ -68,7 +68,7 @@ async def register(user: AuthCredential) -> Token:
 )
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Token:
     async with database.session() as session:
-        result = await session.execute(select(Users).where(Users.email == form_data.username))
+        result = await session.execute(select(User).where(User.email == form_data.username))
         user = result.scalars().first()
 
         if not user or not verify_password(form_data.password, user.password):
