@@ -3,6 +3,7 @@ import logging
 import uvicorn
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from project.api.auth_routes import auth_router
 from project.core.config import settings
@@ -21,13 +22,13 @@ def create_app() -> FastAPI:
         app_options["debug"] = True
 
     app = FastAPI(root_path=settings.ROOT_PATH, **app_options)
-    # app.add_middleware(
-    #     CORSMiddleware,  # type: ignore
-    #     allow_origins=settings.ORIGINS,
-    #     allow_credentials=True,
-    #     allow_methods=["*"],
-    #     allow_headers=["*"],
-    # )
+    app.add_middleware(
+        CORSMiddleware,  # type: ignore
+        allow_origins=settings.ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
     app.include_router(auth_router, tags=["Auth"])
@@ -37,6 +38,15 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+# Настройка CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # URL фронтенда
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 async def run() -> None:
