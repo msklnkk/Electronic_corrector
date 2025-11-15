@@ -10,5 +10,5 @@ interface Props {
 export const ProtectedRoute: React.FC<Props> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div>Загрузка...</div>;
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  return user?.loggedIn ? <>{children}</> : <Navigate to="/login" replace />;
 };

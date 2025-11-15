@@ -1,6 +1,9 @@
 // src/types/auth.types.ts
 export interface IRegisterRequest {
-  login: string;
+  first_name: string;
+  surname_name: string;
+  patronomic_name: string;
+  login: string; // email
   password: string;
 }
 
