@@ -4,23 +4,31 @@ import axios from 'axios';
 const instance = axios.create({
   baseURL: 'http://localhost:8020',
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', // по умолчанию JSON
   },
   withCredentials: true,
 });
 
+// Интерцептор запросов
 instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Для /token — меняем Content-Type на form-data
+    if (config.url?.includes('/token')) {
+      config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    }
+
     console.log('Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// Интерцептор ответов
 instance.interceptors.response.use(
   (response) => {
     console.log('Response:', response.status, response.config.url);

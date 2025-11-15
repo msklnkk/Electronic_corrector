@@ -4,7 +4,11 @@ import { TextField, Button, Box, Alert, Link, Typography } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
-export const LoginForm: React.FC = () => {
+interface LoginFormProps {
+  onSuccess?: () => void;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [patronomic, setPatronomic] = useState('');
@@ -30,6 +34,7 @@ export const LoginForm: React.FC = () => {
       } else {
         await authLogin(email, password);
       }
+      onSuccess?.();
       navigate('/check');
     } catch (err: any) {
       setError(err.message || 'Ошибка');
@@ -37,8 +42,8 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <Box maxWidth={500} mx="auto" mt={6} p={3} boxShadow={3} borderRadius={2}>
-      <Typography variant="h5" gutterBottom textAlign="center">
+    <Box maxWidth={500} mx="auto" p={1}>
+      <Typography variant="h6" gutterBottom textAlign="center">
         {isRegister ? 'Регистрация' : 'Вход'}
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -46,51 +51,14 @@ export const LoginForm: React.FC = () => {
       <form onSubmit={handleSubmit}>
         {isRegister && (
           <>
-            <TextField
-              fullWidth
-              label="Имя"
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Фамилия"
-              value={surname}
-              onChange={e => setSurname(e.target.value)}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Отчество"
-              value={patronomic}
-              onChange={e => setPatronomic(e.target.value)}
-              margin="normal"
-              required
-            />
+            <TextField fullWidth label="Имя" value={firstName} onChange={e => setFirstName(e.target.value)} margin="normal" required />
+            <TextField fullWidth label="Фамилия" value={surname} onChange={e => setSurname(e.target.value)} margin="normal" required />
+            <TextField fullWidth label="Отчество" value={patronomic} onChange={e => setPatronomic(e.target.value)} margin="normal" required />
           </>
         )}
 
-        <TextField
-          fullWidth
-          label="Email"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          margin="normal"
-          required
-        />
-        <TextField
-          fullWidth
-          label="Пароль"
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          margin="normal"
-          required
-        />
+        <TextField fullWidth label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} margin="normal" required />
+        <TextField fullWidth label="Пароль" type="password" value={password} onChange={e => setPassword(e.target.value)} margin="normal" required />
 
         <Button type="submit" fullWidth variant="contained" sx={{ mt: 2, py: 1.5 }}>
           {isRegister ? 'Зарегистрироваться' : 'Войти'}
