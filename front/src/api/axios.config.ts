@@ -15,7 +15,7 @@ instance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('→ Request:', config.method?.toUpperCase(), config.url);
+    console.log('Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => Promise.reject(error)
@@ -23,7 +23,7 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => {
-    console.log('← Response:', response.status, response.config.url);
+    console.log('Response:', response.status, response.config.url);
     return response;
   },
   (error) => {
