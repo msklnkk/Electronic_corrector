@@ -1,48 +1,40 @@
 // src/hooks/useAuth.ts
 import { useState, useEffect } from 'react';
 import { AuthService } from '../services/auth.service';
+import { IRegisterRequest } from '../types/auth.types';
 
 interface AuthState {
-  user: any | null;
+  user: { loggedIn: boolean } | null;
   loading: boolean;
-  login: (login: string, password: string) => Promise<void>;
-  register: (login: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (data: IRegisterRequest) => Promise<void>;
   logout: () => void;
 }
 
 export const useAuth = (): AuthState => {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<{ loggedIn: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const init = async () => {
-      const token = AuthService.getToken();
-      if (token) {
-        try {
-          const userData = await AuthService.getCurrentUser();
-          setUser(userData);
-        } catch {
-          AuthService.logout();
-        }
-      }
-      setLoading(false);
-    };
-    init();
+    const token = AuthService.getToken();
+    if (token) {
+      setUser({ loggedIn: true });
+    }
+    setLoading(false);
   }, []);
 
-  const loginUser = async (login: string, password: string) => {
+  const loginUser = async (email: string, password: string) => {
     const params = new URLSearchParams();
-    params.append('username', login);
+    params.append('username', email);
     params.append('password', password);
     await AuthService.login(params);
-    const userData = await AuthService.getCurrentUser();
-    setUser(userData);
-};
+    setUser({ loggedIn: true });
+  };
 
-  const register = async (login: string, password: string) => {
-    await AuthService.register({ login, password });
-    await loginUser(login, password); 
-};
+  const register = async (data: IRegisterRequest) => {
+    await AuthService.register(data);
+    setUser({ loggedIn: true });
+  };
 
   const logout = () => {
     AuthService.logout();
