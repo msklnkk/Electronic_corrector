@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+  postgres-corrector:
+    image: postgres:12.3
+    hostname: postgres_corrector
+    container_name: postgres-corrector
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASS}
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - C:\docker_volumes\pgdata:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
