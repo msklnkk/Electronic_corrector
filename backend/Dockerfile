@@ -9,15 +9,14 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # === УСТАНОВКА POETRY ===
-# Указываем вручную, куда устанавливать Poetry
 ENV POETRY_HOME="/opt/poetry"
-RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV POETRY_VERSION=1.8.3
 
-# Добавляем Poetry в PATH
-ENV PATH="${POETRY_HOME}/bin:${PATH}"
+RUN curl -sSL https://install.python-poetry.org -o install-poetry.py && \
+    python3 install-poetry.py --version $POETRY_VERSION && \
+    rm install-poetry.py
 
-# Проверим, что всё работает
-RUN poetry --version
+ENV PATH="/opt/poetry/bin:$PATH"
 
 WORKDIR /app
 

@@ -110,7 +110,7 @@ class Review(Base):
     __table_args__ = {"comment": "Отзывы"}
 
     review_id: Mapped[int] = mapped_column(primary_key=True, comment="Индентификатор")
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="Связь с User")
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, comment="Связь с User")
 
     rating: Mapped[int] = mapped_column(Integer, nullable=False, comment="Оценка от 1 до 5 звезд")
     review_text: Mapped[str] = mapped_column(Text, nullable=True, comment="Текст отзыва")
