@@ -1,14 +1,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
 from fastapi import HTTPException
 from fastapi import status
-from sqlalchemy import select, update, insert, delete
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, UserNotFound
+from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, UserNotFound, UserTelegramAlreadyExists
 from project.resource.auth import get_password_hash
 from project.schemas.user import UserCreate, UserSchema
 
@@ -21,17 +18,7 @@ user_routes = APIRouter()
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-# class UserDb(BaseModel):
-#     """Пользователь"""
-#     id: int | None = Field(description="Идентификатор", default=None)
-#     first_name: str = Field(description="Имя")
-#     surname_name: str = Field(description="Фамилия")
-#     patronomic_name: str = Field(description="Отчество")
-#     user_name: str = Field(description="Логин")
-#     password: str = Field(description="Пароль")
-#     role: str = Field(description="Роль")
-#     is_admin: bool = Field(description="Админ", default=False)
-    
+
 @user_routes.get(
     "/all_users",
     response_model=list[UserSchema],
@@ -62,6 +49,8 @@ async def add_user(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
     except UserNameAlreadyExists as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
+    except UserTelegramAlreadyExists as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
 
     return new_user
 
@@ -78,6 +67,20 @@ async def update_user(
     check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
+
+            # --- Проверка уникальности логина ---
+            if user_dto.user_name:
+                exists_login = await user_repo.get_user_by_login(session, user_dto.user_name)
+                if exists_login and exists_login.user_id != user_id:
+                    raise UserNameAlreadyExists(login=user_dto.user_name)
+
+            # --- Проверка уникальности Telegram username ---
+            if user_dto.tg_username:
+                exists_tg = await user_repo.get_user_by_tg_username(session, user_dto.tg_username)
+                if exists_tg and exists_tg.user_id != user_id:
+                    from project.core.exceptions import UserTelegramAlreadyExists
+                    raise UserTelegramAlreadyExists(tg_username=user_dto.tg_username)
+
             user_dto.password = get_password_hash(password=user_dto.password)
             updated_user = await user_repo.update_user(
                 session=session,

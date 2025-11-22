@@ -8,11 +8,15 @@ from project.resource.auth import oauth2_scheme
 
 
 from project.infrastructure.postgres.database import PostgresDatabase
-from project.infrastructure.postgres.repository.user_repo import UserRepository
 from project.schemas.user import UserSchema
+
+from project.infrastructure.postgres.repository.user_repo import UserRepository
+from project.infrastructure.postgres.repository.document_repository import DocumentRepository
+
 
 database = PostgresDatabase()
 user_repo = UserRepository()
+document_repo = DocumentRepository()
 
 
 

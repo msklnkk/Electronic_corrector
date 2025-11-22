@@ -42,3 +42,21 @@ class UserNameAlreadyExists(BaseException):
     def __init__(self, login: str) -> None:
         self.message = self._ERROR_MESSAGE_TEMPLATE.format(login=login)
         super().__init__(self.message)
+
+
+class UserTelegramAlreadyExists(BaseException):
+    _ERROR_MESSAGE_TEMPLATE: Final[str] = (
+        "Пользователь с Telegram username '{tg_username}' уже существует"
+    )
+
+    def __init__(self, tg_username: str) -> None:
+        self.message = self._ERROR_MESSAGE_TEMPLATE.format(tg_username=tg_username)
+        super().__init__(self.message)
+
+
+class DocumentNotFound(BaseException):
+    _ERROR_MESSAGE_TEMPLATE = "Документ с id '{id}' не найден"
+
+    def __init__(self, _id: int | str):
+        self.message = self._ERROR_MESSAGE_TEMPLATE.format(id=_id)
+        super().__init__(self.message)
