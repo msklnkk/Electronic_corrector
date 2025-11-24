@@ -42,7 +42,7 @@ async def register(user: AuthCredential) -> Token:
             surname_name=user.surname_name,
             patronomic_name=user.patronomic_name,
             email=user.login,
-            user_name=user.login,
+            username=user.login,
             password=get_password_hash(user.password),
             role="user",
             is_admin=False
