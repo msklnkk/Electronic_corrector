@@ -13,11 +13,11 @@ from project.resource.auth import verify_password, get_password_hash
 from project.schemas.auth import Token, AuthCredential
 from project.core.config import settings
 
-auth_router = APIRouter()
+auth_routes = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@auth_router.post(
+@auth_routes.post(
     "/register",
     response_model=Token,
     status_code=status.HTTP_201_CREATED,
@@ -65,7 +65,7 @@ async def register(user: AuthCredential) -> Token:
         return Token(access_token=access_token, token_type="bearer")
 
 
-@auth_router.post(
+@auth_routes.post(
     "/token",
     response_model=Token,
     description="Авторизация пользователя"

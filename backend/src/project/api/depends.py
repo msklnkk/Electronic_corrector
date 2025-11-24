@@ -1,6 +1,7 @@
 from typing import Annotated
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
+
 from project.schemas.auth import TokenData
 from project.core.config import settings
 from project.core.exceptions import CredentialsException
@@ -12,12 +13,23 @@ from project.schemas.user import UserSchema
 
 from project.infrastructure.postgres.repository.user_repo import UserRepository
 from project.infrastructure.postgres.repository.document_repository import DocumentRepository
+from project.infrastructure.postgres.repository.standard_repo import StandardRepository
+from project.infrastructure.postgres.repository.check_repo import CheckRepository
+from project.infrastructure.postgres.repository.report_repo import ReportRepository
+from project.infrastructure.postgres.repository.review_repo import ReviewRepository
+from project.infrastructure.postgres.repository.status_repo import StatusRepository
+from project.infrastructure.postgres.repository.mistake_type_repo import MistakeTypeRepository
 
 
 database = PostgresDatabase()
 user_repo = UserRepository()
 document_repo = DocumentRepository()
-
+standard_repo = StandardRepository()
+check_repo = CheckRepository()
+report_repo = ReportRepository()
+review_repo = ReviewRepository()
+status_repo = StatusRepository()
+mistake_type_repo = MistakeTypeRepository()
 
 
 AUTH_EXCEPTION_MESSAGE = "Невозможно проверить данные для авторизации"
