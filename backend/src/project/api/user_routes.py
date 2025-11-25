@@ -1,9 +1,6 @@
-from typing import Annotated
-
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
 from fastapi import status
-from sqlalchemy.orm import Session
 
 from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, UserNotFound, UserTelegramAlreadyExists
 from project.resource.auth import get_password_hash
@@ -15,8 +12,6 @@ from project.api.depends import database, user_repo, get_current_user, check_for
 
 
 user_routes = APIRouter()
-
-SessionDep = Annotated[Session, Depends(get_session)]
 
 
 @user_routes.get(
