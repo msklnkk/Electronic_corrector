@@ -3,6 +3,8 @@ from collections.abc import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, true
 from sqlalchemy.exc import IntegrityError, InterfaceError
+from sqlalchemy.orm import joinedload
+
 from project.schemas.check import CheckCreate, CheckSchema
 from project.infrastructure.postgres.models import Check
 from project.core.exceptions import CheckNotFound, CheckAlreadyExists
@@ -82,3 +84,13 @@ class CheckRepository:
         result = await session.execute(query)
         if not result.rowcount:
             raise CheckNotFound(_id=check_id)
+
+    async def get_checks_by_user_id(self, session: AsyncSession, user_id: int) -> list[CheckSchema]:
+        query = (
+            select(self._collection)
+            .join(self._collection.document)
+            .where(self._collection.document.has(user_id=user_id))
+            .options(joinedload(self._collection.document))
+        )
+        checks = await session.scalars(query)
+        return [CheckSchema.model_validate(obj=check) for check in checks.all()]

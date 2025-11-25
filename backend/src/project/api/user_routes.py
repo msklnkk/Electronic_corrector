@@ -6,10 +6,7 @@ from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, Us
 from project.resource.auth import get_password_hash
 from project.schemas.user import UserCreate, UserSchema
 
-
-from project.infrastructure.postgres.session import get_session
 from project.api.depends import database, user_repo, get_current_user, check_for_admin_access
-
 
 user_routes = APIRouter()
 
@@ -18,7 +15,7 @@ user_routes = APIRouter()
     "/all_users",
     response_model=list[UserSchema],
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def get_all_users() -> list[UserSchema]:
     async with database.session() as session:
@@ -29,13 +26,12 @@ async def get_all_users() -> list[UserSchema]:
 @user_routes.post(
     "/add_user",
     response_model=UserSchema,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(check_for_admin_access)]
 )
 async def add_user(
     user_dto: UserCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> UserSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             user_dto.password = get_password_hash(password=user_dto.password)
@@ -53,13 +49,12 @@ async def add_user(
     "/update_user/{user_id}",
     response_model=UserSchema,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)]
 )
 async def update_user(
     user_id: int,
     user_dto: UserCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> UserSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
 
@@ -89,14 +84,13 @@ async def update_user(
 
 @user_routes.delete(
     "/delete_user/{user_id}",
-    status_code = status.HTTP_204_NO_CONTENT
+    status_code = status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(check_for_admin_access)]
 )
 async def delete_user(
         user_id: int,
-        current_user: UserSchema = Depends(get_current_user),
 ) -> None:
     """Запрос: удалить пользователя"""
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             user = await user_repo.delete_user(session=session, user_id=user_id)
@@ -109,7 +103,6 @@ async def delete_user(
     "/me",
     response_model=UserSchema,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
 )
 async def get_current_user_info(
     current_user: UserSchema = Depends(get_current_user),

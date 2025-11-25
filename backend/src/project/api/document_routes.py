@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from project.api.depends import (
     database,
     get_current_user,
-    document_repo,
+    document_repo, check_for_admin_access,
 )
 from project.schemas.documents import DocumentCreate, DocumentSchema, DocumentUpdate
 from project.core.exceptions import DocumentNotFound
@@ -15,13 +15,11 @@ document_routes = APIRouter()
     "/all_documents",
     response_model=list[DocumentSchema],
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)]
 )
-async def get_all_documents(current_user=Depends(get_current_user)) -> list[DocumentSchema]:
+async def get_all_documents() -> list[DocumentSchema]:
     async with database.session() as session:
-        if current_user.is_admin:
-            documents = await document_repo.get_all_documents(session)
-        else:
-            documents = await document_repo.get_documents_by_user(session, current_user.user_id)
+        documents = await document_repo.get_all_documents(session)
     return documents
 
 
@@ -46,10 +44,10 @@ async def get_documents_by_user(
     "/status/{status_id}",
     response_model=list[DocumentSchema],
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)]
 )
 async def get_documents_by_status(
     status_id: int,
-    current_user=Depends(get_current_user),
 ) -> list[DocumentSchema]:
     async with database.session() as session:
         documents = await document_repo.get_documents_by_status(session, status_id)
@@ -67,6 +65,9 @@ async def get_document_mistakes(
 ) -> list[dict]:
     async with database.session() as session:
         document = await document_repo.get_document_by_id(session, document_id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
+
         if not current_user.is_admin and document.user_id != current_user.user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")
         mistakes = await document_repo.get_document_mistakes(session, document_id)
@@ -84,6 +85,9 @@ async def get_document_full_info(
 ) -> DocumentSchema:
     async with database.session() as session:
         document = await document_repo.get_document_by_id(session, document_id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
+
         if not current_user.is_admin and document.user_id != current_user.user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")
         full_info = await document_repo.get_document_full_info(session, document_id)
@@ -118,6 +122,8 @@ async def update_document(
 ) -> DocumentSchema:
     async with database.session() as session:
         document = await document_repo.get_document_by_id(session, document_id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
 
         if not current_user.is_admin and document.user_id != current_user.user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")
@@ -140,6 +146,8 @@ async def delete_document(
 ) -> None:
     async with database.session() as session:
         document = await document_repo.get_document_by_id(session, document_id)
+        if document is None:
+            raise HTTPException(404, "Документ не найден")
 
         if not current_user.is_admin and document.user_id != current_user.user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")

@@ -8,20 +8,8 @@ from project.api.depends import (
 )
 from project.schemas.standart import StandardCreate, StandardSchema
 from project.core.exceptions import StandardNotFound, StandardAlreadyExists
-from project.schemas.user import UserSchema
 
 standard_routes = APIRouter()
-
-
-@standard_routes.get(
-    "/check_standards_connection",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
-)
-async def check_standards_connection() -> bool:
-    async with database.session() as session:
-        return await standard_repo.check_connection(session=session)
-
 
 
 @standard_routes.get(
@@ -41,7 +29,7 @@ async def get_all_standards() -> list[StandardSchema]:
     "/standard/{standart_id}",
     response_model=StandardSchema,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def get_standard_by_id(standart_id: int) -> StandardSchema:
     try:
@@ -61,13 +49,12 @@ async def get_standard_by_id(standart_id: int) -> StandardSchema:
     "/standard_by_name_version",
     response_model=StandardSchema | None,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def get_standard_by_name_version(
     name: str,
     version: str | None = None,
-    current_user: UserSchema = Depends(get_current_user),
 ):
-    check_for_admin_access(user=current_user)
 
     async with database.session() as session:
         standard = await standard_repo.get_standard_by_name_version(
@@ -85,13 +72,11 @@ async def get_standard_by_name_version(
     "/add_standard",
     response_model=StandardSchema,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def add_standard(
     standard_dto: StandardCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> StandardSchema:
-    check_for_admin_access(user=current_user)
-
     try:
         async with database.session() as session:
             new_standard = await standard_repo.create_standard(
@@ -112,14 +97,12 @@ async def add_standard(
     "/update_standard/{standart_id}",
     response_model=StandardSchema,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def update_standard(
     standart_id: int,
     standard_dto: StandardCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> StandardSchema:
-    check_for_admin_access(user=current_user)
-
     try:
         async with database.session() as session:
             updated_standard = await standard_repo.update_standard(
@@ -144,13 +127,11 @@ async def update_standard(
 @standard_routes.delete(
     "/delete_standard/{standart_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def delete_standard(
     standart_id: int,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> None:
-    check_for_admin_access(user=current_user)
-
     try:
         async with database.session() as session:
             await standard_repo.delete_standard(

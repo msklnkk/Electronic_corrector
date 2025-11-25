@@ -28,20 +28,22 @@ async def get_all_statuses() -> list[StatusSchema]:
     dependencies=[Depends(get_current_user)],
 )
 async def get_status_by_id(status_id: int) -> StatusSchema:
-    async with database.session() as session:
-        status = await status_repo.get_status_by_id(session=session, status_id=status_id)
+    try:
+        async with database.session() as session:
+            status = await status_repo.get_status_by_id(session=session, status_id=status_id)
+    except StatusNotFound as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
     return status
 
 @status_routes.post(
     "/add_status",
     response_model=StatusSchema,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies = [Depends(check_for_admin_access)],
 )
 async def add_status(
     status_dto: StatusCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> StatusSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             new_status = await status_repo.create_status(session=session, status=status_dto)
@@ -54,13 +56,12 @@ async def add_status(
     "/update_status/{status_id}",
     response_model=StatusSchema,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def update_status(
     status_id: int,
     status_dto: StatusCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> StatusSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             updated_status = await status_repo.update_status(
@@ -77,13 +78,12 @@ async def update_status(
 
 @status_routes.delete(
     "/delete_status/{status_id}",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def delete_status(
     status_id: int,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> None:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             await status_repo.delete_status(session=session, status_id=status_id)

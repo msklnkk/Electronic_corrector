@@ -16,16 +16,22 @@ review_routes = APIRouter()
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
 )
-async def get_all_reviews() -> list[ReviewSchema]:
+async def get_all_reviews(current_user: UserSchema = Depends(get_current_user)) -> list[ReviewSchema]:
     async with database.session() as session:
-        all_reviews = await review_repo.get_all_reviews(session=session)
-    return all_reviews
+        try:
+            if current_user.is_admin:
+                all_reviews = await review_repo.get_all_reviews(session=session)
+            else:
+                all_reviews = await review_repo.get_reviews_by_user_id(session=session, user_id=current_user.user_id)
+        except ReviewNotFound as error:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
+        return all_reviews
 
 @review_routes.get(
     "/review/{review_id}",
     response_model=ReviewSchema,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def get_review_by_id(review_id: int) -> ReviewSchema:
     async with database.session() as session:
@@ -50,9 +56,7 @@ async def get_reviews_by_user_id(user_id: int) -> list[ReviewSchema]:
 )
 async def add_review(
     review_dto: ReviewCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> ReviewSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             new_review = await review_repo.create_review(session=session, review=review_dto)
@@ -71,14 +75,16 @@ async def update_review(
     review_dto: ReviewCreate,
     current_user: UserSchema = Depends(get_current_user),
 ) -> ReviewSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
-            updated_review = await review_repo.update_review(
-                session=session,
-                review_id=review_id,
-                review=review_dto,
-            )
+            existing_review = await review_repo.get_review_by_id(session=session, review_id=review_id)
+
+            if not current_user.is_admin and existing_review.user_id != current_user.user_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к чужому отзыву")
+
+            review_dto.user_id = existing_review.user_id  # нельзя менять владельца
+            updated_review = await review_repo.update_review(session=session, review_id=review_id, review=review_dto)
+
     except ReviewNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
     except ReviewAlreadyExists as error:
@@ -94,9 +100,13 @@ async def delete_review(
     review_id: int,
     current_user: UserSchema = Depends(get_current_user),
 ) -> None:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
+            existing_review = await review_repo.get_review_by_id(session=session, review_id=review_id)
+
+            if not current_user.is_admin and existing_review.user_id != current_user.user_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к чужому отзыву")
+
             await review_repo.delete_review(session=session, review_id=review_id)
     except ReviewNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)

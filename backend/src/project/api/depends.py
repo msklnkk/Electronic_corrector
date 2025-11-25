@@ -19,6 +19,7 @@ from project.infrastructure.postgres.repository.report_repo import ReportReposit
 from project.infrastructure.postgres.repository.review_repo import ReviewRepository
 from project.infrastructure.postgres.repository.status_repo import StatusRepository
 from project.infrastructure.postgres.repository.mistake_type_repo import MistakeTypeRepository
+from project.infrastructure.postgres.repository.mistake_repo import MistakeRepository
 
 
 database = PostgresDatabase()
@@ -30,6 +31,7 @@ report_repo = ReportRepository()
 review_repo = ReviewRepository()
 status_repo = StatusRepository()
 mistake_type_repo = MistakeTypeRepository()
+mistake_repo = MistakeRepository()
 
 
 AUTH_EXCEPTION_MESSAGE = "Невозможно проверить данные для авторизации"
@@ -57,9 +59,12 @@ async def get_current_user(
         raise CredentialsException(detail=AUTH_EXCEPTION_MESSAGE)
     return user
 
-def check_for_admin_access(user: UserSchema) -> None:
+async def check_for_admin_access(
+    user: UserSchema = Depends(get_current_user)
+) -> UserSchema:
     if not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Только админ имеет права добавлять/изменять/удалять данные"
         )
+    return user

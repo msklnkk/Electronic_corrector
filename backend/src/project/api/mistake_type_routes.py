@@ -6,7 +6,6 @@ from project.core.exceptions import MistakeTypeNotFound, MistakeTypeAlreadyExist
 from project.schemas.mistake_type import MistakeTypeCreate, MistakeTypeSchema
 
 from project.api.depends import database, mistake_type_repo, get_current_user, check_for_admin_access
-from project.schemas.user import UserSchema
 
 mistake_type_routes = APIRouter()
 
@@ -25,23 +24,26 @@ async def get_all_mistake_types() -> list[MistakeTypeSchema]:
     "/mistake_type/{mistake_type_id}",
     response_model=MistakeTypeSchema,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def get_mistake_type_by_id(mistake_type_id: int) -> MistakeTypeSchema:
-    async with database.session() as session:
-        mistake_type = await mistake_type_repo.get_mistake_type_by_id(session=session, mistake_type_id=mistake_type_id)
+    try:
+        async with database.session() as session:
+            mistake_type = await mistake_type_repo.get_mistake_type_by_id(session=session, mistake_type_id=mistake_type_id)
+    except MistakeTypeNotFound as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
+
     return mistake_type
 
 @mistake_type_routes.post(
     "/add_mistake_type",
     response_model=MistakeTypeSchema,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def add_mistake_type(
     mistake_type_dto: MistakeTypeCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> MistakeTypeSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             new_mistake_type = await mistake_type_repo.create_mistake_type(session=session, mistake_type=mistake_type_dto)
@@ -54,13 +56,12 @@ async def add_mistake_type(
     "/update_mistake_type/{mistake_type_id}",
     response_model=MistakeTypeSchema,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def update_mistake_type(
     mistake_type_id: int,
     mistake_type_dto: MistakeTypeCreate,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> MistakeTypeSchema:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             updated_mistake_type = await mistake_type_repo.update_mistake_type(
@@ -77,13 +78,12 @@ async def update_mistake_type(
 
 @mistake_type_routes.delete(
     "/delete_mistake_type/{mistake_type_id}",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(check_for_admin_access)],
 )
 async def delete_mistake_type(
     mistake_type_id: int,
-    current_user: UserSchema = Depends(get_current_user),
 ) -> None:
-    check_for_admin_access(user=current_user)
     try:
         async with database.session() as session:
             await mistake_type_repo.delete_mistake_type(session=session, mistake_type_id=mistake_type_id)

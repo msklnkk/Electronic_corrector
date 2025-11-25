@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError, InterfaceError
 from project.schemas.reports import ReportCreate, ReportSchema
 from project.infrastructure.postgres.models import Reports
 from project.core.exceptions import ReportNotFound, ReportAlreadyExists
+from project.infrastructure.postgres.models import Reports, Check, Documents
 
 
 class ReportRepository:
@@ -69,3 +70,18 @@ class ReportRepository:
         result = await session.execute(query)
         if not result.rowcount:
             raise ReportNotFound(_id=report_id)
+
+    async def get_reports_by_user(self, session: AsyncSession, user_id: int) -> List[ReportSchema]:
+        """
+        Возвращает все отчёты, относящиеся к документам конкретного пользователя.
+        JOIN: reports → checks → documents
+        """
+        query = (
+            select(self._collection)
+            .join(Check, Check.check_id == Reports.check_id)
+            .join(Documents, Documents.document_id == Check.document_id)
+            .where(Documents.user_id == user_id)
+        )
+
+        reports = await session.scalars(query)
+        return [ReportSchema.model_validate(obj=report) for report in reports.all()]

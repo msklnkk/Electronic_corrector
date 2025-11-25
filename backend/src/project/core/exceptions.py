@@ -166,3 +166,20 @@ class MistakeTypeAlreadyExists(BaseException):
     def __init__(self, name: str) -> None:
         self.message = self._ERROR_MESSAGE_TEMPLATE.format(name=name)
         super().__init__(self.message)
+
+
+class MistakeNotFound(BaseException):
+    _ERROR_MESSAGE_TEMPLATE: Final[str] = "Ошибка с id '{id}' не найдена"
+    message: str
+
+    def __init__(self, _id: int | str) -> None:
+        self.message = self._ERROR_MESSAGE_TEMPLATE.format(id=_id)
+        super().__init__(self.message)
+
+
+class MistakeAlreadyExists(BaseException):
+    _ERROR_MESSAGE_TEMPLATE: Final[str] = "Ошибка для документа '{document_id}' и типа '{mistake_type_id}' уже существует"
+
+    def __init__(self, document_id: int, mistake_type_id: int | None) -> None:
+        self.message = self._ERROR_MESSAGE_TEMPLATE.format(document_id=document_id, mistake_type_id=mistake_type_id if mistake_type_id is not None else "—")
+        super().__init__(self.message)
