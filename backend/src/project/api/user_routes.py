@@ -109,3 +109,17 @@ async def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
 
     return user
+
+@user_routes.get(
+    "/me",
+    response_model=UserSchema,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_current_user)],
+)
+async def get_current_user_info(
+    current_user: UserSchema = Depends(get_current_user),
+) -> UserSchema:
+    """
+    Получить данные текущего авторизованного пользователя
+    """
+    return current_user
