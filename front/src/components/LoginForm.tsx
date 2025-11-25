@@ -1,73 +1,171 @@
 // src/components/LoginForm.tsx
 import React, { useState } from 'react';
-import { TextField, Button, Box, Alert, Link, Typography } from '@mui/material';
+import {
+  TextField,
+  Button,
+  Box,
+  Alert,
+  Link,
+  Typography,
+  InputAdornment,
+  IconButton,
+} from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import axios from '../api/axios.config';
+import { AuthService } from '../services/auth.service';
 
 interface LoginFormProps {
   onSuccess?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
+  const [isRegister, setIsRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
   const [patronomic, setPatronomic] = useState('');
+  const [tgUsername, setTgUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
+
   const { login: authLogin, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     try {
       if (isRegister) {
-        await register({
+  await AuthService.register({
           first_name: firstName,
           surname_name: surname,
-          patronomic_name: patronomic,
-          login: email,
-          password,
+          patronomic_name: patronomic || " ",     
+          login: email,                          
+          email: email,
+          password: password,
+          tg_username: tgUsername,                
+          // username не отправляем вообще — бэкенд его не ждёт
         });
       } else {
         await authLogin(email, password);
       }
+
+      // Загружаем актуальный профиль
+      const { data } = await axios.get("/me");
+      AuthService.setUserProfile(data);
+
       onSuccess?.();
       navigate('/check');
     } catch (err: any) {
-      setError(err.message || 'Ошибка');
+      setError(err.response?.data?.detail || 'Ошибка авторизации');
     }
   };
 
   return (
-    <Box maxWidth={500} mx="auto" p={1}>
-      <Typography variant="h6" gutterBottom textAlign="center">
-        {isRegister ? 'Регистрация' : 'Вход'}
+    <Box maxWidth={420} mx="auto">
+      <Typography variant="h6" textAlign="center" gutterBottom fontWeight={700}>
+        {isRegister ? 'Создание аккаунта' : 'Вход в аккаунт'}
       </Typography>
+
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <form onSubmit={handleSubmit}>
         {isRegister && (
           <>
-            <TextField fullWidth label="Имя" value={firstName} onChange={e => setFirstName(e.target.value)} margin="normal" required />
-            <TextField fullWidth label="Фамилия" value={surname} onChange={e => setSurname(e.target.value)} margin="normal" required />
-            <TextField fullWidth label="Отчество" value={patronomic} onChange={e => setPatronomic(e.target.value)} margin="normal" required />
+            <TextField
+              fullWidth
+              label="Имя"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              margin="normal"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Фамилия"
+              value={surname}
+              onChange={(e) => setSurname(e.target.value)}
+              margin="normal"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Отчество (по желанию)"
+              value={patronomic}
+              onChange={(e) => setPatronomic(e.target.value)}
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Telegram"
+              value={tgUsername}
+              onChange={(e) => setTgUsername(e.target.value.replace(/^@/, ''))}
+              margin="normal"
+              required
+              placeholder="ivan_ivanov"
+              helperText="Без символа @"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">@</InputAdornment>,
+              }}
+            />
           </>
         )}
 
-        <TextField fullWidth label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} margin="normal" required />
-        <TextField fullWidth label="Пароль" type="password" value={password} onChange={e => setPassword(e.target.value)} margin="normal" required />
+        <TextField
+          fullWidth
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          margin="normal"
+          required
+        />
 
-        <Button type="submit" fullWidth variant="contained" sx={{ mt: 2, py: 1.5 }}>
+        <TextField
+          fullWidth
+          label="Пароль"
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          margin="normal"
+          required
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPassword((p) => !p)}>
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          size="large"
+          sx={{ mt: 3, py: 1.8, borderRadius: 3 }}
+        >
           {isRegister ? 'Зарегистрироваться' : 'Войти'}
         </Button>
       </form>
 
-      <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
+      <Typography variant="body2" textAlign="center" sx={{ mt: 3, color: 'text.secondary' }}>
         {isRegister ? 'Уже есть аккаунт? ' : 'Нет аккаунта? '}
-        <Link component="button" onClick={() => setIsRegister(!isRegister)} variant="body2">
+        <Link
+          component="button"
+          onClick={() => {
+            setIsRegister(!isRegister);
+            setError('');
+          }}
+          sx={{ fontWeight: 600, color: 'primary.main' }}
+        >
           {isRegister ? 'Войти' : 'Зарегистрироваться'}
         </Link>
       </Typography>

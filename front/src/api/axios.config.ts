@@ -35,11 +35,20 @@ instance.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('Ошибка:', error.response?.status, error.response?.data);
+    // ВОТ ЭТО САМОЕ ГЛАВНОЕ — подробный вывод 422
+    if (error.response?.status === 422) {
+      console.error('%c422 — БЭКЕНД НЕ ПРИНЯЛ ДАННЫЕ РЕГИСТРАЦИИ:', 'color: red; font-size: 16px; font-weight: bold');
+      console.error('Точное тело ошибки от FastAPI:');
+      console.error(JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error('Ошибка:', error.response?.status, error.response?.data || error.message);
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
       window.location.href = '/login';
     }
+
     const message = error.response?.data?.detail || 'Ошибка сервера';
     return Promise.reject(new Error(message));
   }
