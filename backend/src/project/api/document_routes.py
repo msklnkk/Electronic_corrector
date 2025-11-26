@@ -1,12 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import FileResponse
+import shutil
+import os
+from pathlib import Path
+from typing import List, Optional
+from decimal import Decimal
+from datetime import datetime
 
 from project.api.depends import (
     database,
     get_current_user,
-    document_repo, check_for_admin_access,
+    document_repo, 
+    check_for_admin_access,
 )
-from project.schemas.documents import DocumentCreate, DocumentSchema, DocumentUpdate
+from project.schemas.documents import (
+    DocumentCreate, 
+    DocumentSchema, 
+    DocumentUpdate,
+    FileUploadResponse,
+    FileInfo
+)
 from project.core.exceptions import DocumentNotFound
+from project.core.config import settings
 
 document_routes = APIRouter()
 
@@ -156,3 +171,97 @@ async def delete_document(
             await document_repo.delete_document(session, document_id)
         except DocumentNotFound as error:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
+
+@document_routes.post(
+    "/upload",
+    response_model=FileUploadResponse,
+    status_code=status.HTTP_201_CREATED
+)
+async def upload_document_file(
+    file: UploadFile = File(...),
+    doc_type: str = Form("document"),
+    is_example: bool = Form(False),
+    current_user=Depends(get_current_user)
+) -> FileUploadResponse:
+    """
+    Загрузка документа через проводник
+    """
+    try:
+        print(f"=== НАЧАЛО ЗАГРУЗКИ ===")
+        print(f"Файл: {file.filename}")
+        print(f"Пользователь: {current_user.user_id}")
+        
+        # Проверяем тип файла
+        file_extension = Path(file.filename).suffix.lower()
+        allowed_types = [".pdf", ".doc", ".docx", ".txt"]
+        
+        if file_extension not in allowed_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Недопустимый тип файла. Разрешены: {', '.join(allowed_types)}"
+            )
+
+        # Создаем директорию если нет
+        upload_dir = Path("uploads")
+        upload_dir.mkdir(exist_ok=True)
+        
+        # Генерируем уникальное имя файла ДЛЯ БАЗЫ ДАННЫХ
+        import uuid
+        import time
+        unique_filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{file.filename}"
+        file_path = upload_dir / unique_filename
+        
+        # Сохраняем файл
+        content = await file.read()
+        file_size = len(content)
+        
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        print(f"Файл сохранен: {file_path}")
+        
+        # Создаем запись в БД с УНИКАЛЬНЫМ именем файла
+        from decimal import Decimal
+        from datetime import datetime
+        
+        document_data = DocumentCreate(
+            user_id=current_user.user_id,
+            filename=unique_filename,  # Используем уникальное имя вместо оригинального
+            filepath=str(file_path),
+            upload_datetime=datetime.utcnow(),
+            doc_type=doc_type,
+            is_example=is_example,
+            size=Decimal(file_size),
+            status_id=1,
+            report_pdf_path="",
+            score=Decimal('0.0'),
+            analysis_time=Decimal('0.0')
+        )
+
+        async with database.session() as session:
+            new_document = await document_repo.create_document(session, document_data)
+        
+        print(f"Документ создан в БД: {new_document.document_id}")
+        
+        return FileUploadResponse(
+            filename=file.filename,  # Оригинальное имя для ответа
+            saved_filename=unique_filename,  # Уникальное имя в системе
+            file_path=str(file_path),
+            file_size=file_size,
+            content_type=file.content_type,
+            document_id=new_document.document_id,
+            message="Документ успешно загружен"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Ошибка при загрузке: {str(e)}")
+        if 'file_path' in locals() and file_path.exists():
+            file_path.unlink()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при загрузке файла: {str(e)}"
+        )
+    finally:
+        await file.close()

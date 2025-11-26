@@ -1,7 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict
 
 class DocumentBase(BaseModel):
@@ -18,22 +17,38 @@ class DocumentBase(BaseModel):
     analysis_time: Decimal
 
 class DocumentUpdate(BaseModel):
-    filename: Optional[str]
-    filepath: Optional[str]
-    doc_type: Optional[str]
-    is_example: Optional[bool]
-    size: Optional[Decimal]
-    status_id: Optional[int]
-    report_pdf_path: Optional[str]
-    score: Optional[Decimal]
-    analysis_time: Optional[Decimal]
-    upload_datetime: Optional[datetime]
+    filename: Optional[str] = None
+    filepath: Optional[str] = None
+    doc_type: Optional[str] = None
+    is_example: Optional[bool] = None
+    size: Optional[Decimal] = None
+    status_id: Optional[int] = None
+    report_pdf_path: Optional[str] = None
+    score: Optional[Decimal] = None
+    analysis_time: Optional[Decimal] = None
+    upload_datetime: Optional[datetime] = None
 
 class DocumentCreate(DocumentBase):
     pass
 
-
 class DocumentSchema(DocumentBase):
+    document_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+# Новые схемы для загрузки файлов
+class FileUploadResponse(BaseModel):
+    filename: str
+    saved_filename: str
+    file_path: str
+    file_size: int
+    content_type: Optional[str] = None
+    document_id: Optional[int] = None
+    message: str
+
+class FileInfo(BaseModel):
+    filename: str
+    size: int
+    upload_time: float
     document_id: int
 
     model_config = ConfigDict(from_attributes=True)
