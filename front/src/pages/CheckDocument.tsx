@@ -1,5 +1,6 @@
 // src/pages/CheckDocument.tsx
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import api from '../api/axios.config';
 import {
   Container,
   Stack,
@@ -28,9 +29,59 @@ const CheckDocumentPage: React.FC = () => {
   // Состояние для выбора типа проверки
   const [selectedType, setSelectedType] = useState("gost");
 
+  // новое состояние для подсветки при перетаскивании
+  const [dragging, setDragging] = useState(false);
+
+  // выбранный файл
+  const [file, setFile] = useState<File | null>(null);
+
+  // статус загрузки
+  const [uploading, setUploading] = useState(false);
+
+  // ref для скрытого input
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const handleTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedType(event.target.value);
   };
+
+  // клик по кнопке открывает диалог
+  const handleChooseFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  // пользователь выбрал файл
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files?.[0]) {
+      setFile(event.target.files[0]);
+    }
+  };
+
+  // отправка файла
+  const handleUpload = async () => {
+    if (!file) {
+      alert("Выберите файл!");
+      return;
+    }
+
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file); // имя параметра должно совпадать с FastAPI
+
+    try {
+      const res = await api.post("/upload", formData); // <-- axios instance автоматически добавит Authorization
+      console.log("UPLOAD SUCCESS:", res.data);
+      alert("Файл успешно загружен!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Ошибка загрузки: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
 
   return (
     <>
@@ -38,7 +89,36 @@ const CheckDocumentPage: React.FC = () => {
         <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
           {/* Левая часть */}
           <Stack flex={2} spacing={3}>
-            <Paper variant="outlined" sx={{ p: 4, textAlign: "center", borderStyle: "dashed" }}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 4, 
+                textAlign: "center", 
+                borderStyle: "dashed", 
+                borderColor: dragging ? "primary.dark" : "primary.main",
+                bgcolor: dragging ? "action.hover" : "inherit",
+                transition: "background-color 0.2s, border-color 0.2s" 
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  const droppedFile = e.dataTransfer.files[0];
+                  if (droppedFile && (droppedFile.type === "application/pdf" || droppedFile.name.match(/\.(doc|docx)$/))) {
+                    setFile(droppedFile);
+                  } else {
+                    alert("Допустимы только PDF и DOCX файлы");
+                  }
+                }}
+              >
+
               <UploadFile sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 Перетащите PDF или DOCX
@@ -46,9 +126,36 @@ const CheckDocumentPage: React.FC = () => {
               <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
                 или нажмите для выбора файла <br /> Максимальный размер: 50 МБ
               </Typography>
-              <Button variant="contained" color="primary">
+              
+              {/* HIDDEN input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+              
+              <Button variant="contained" color="primary" onClick={handleChooseFile}>
                 Выбрать файл
               </Button>
+
+              {file && (
+                <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
+                  <Typography variant="body1">
+                    Выбран файл: <b>{file.name}</b>
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    onClick={() => setFile(null)}
+                  >
+                    Удалить
+                  </Button>
+                </Box>
+              )}
+
             </Paper>
 
             {/* ТИП ПРОВЕРКИ — РАБОЧИЙ */}
@@ -78,9 +185,11 @@ const CheckDocumentPage: React.FC = () => {
                 variant="contained"
                 color="primary"
                 size="large"
+                disabled={uploading}
+                onClick={handleUpload}
                 sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}
               >
-                Начать проверку
+                {uploading ? "Загрузка..." : "Начать проверку"}
               </Button>
             </Box>
           </Stack>
