@@ -3,9 +3,9 @@ import axios from 'axios';
 
 const instance = axios.create({
   baseURL: 'http://localhost:8020',
-  headers: {
-    'Content-Type': 'application/json', // по умолчанию JSON
-  },
+  // headers: {
+  //   'Content-Type': 'application/json', // по умолчанию JSON
+  // },
   withCredentials: true,
 });
 
@@ -22,7 +22,7 @@ instance.interceptors.request.use(
       config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
-    console.log('Request:', config.method?.toUpperCase(), config.url);
+    console.log('Request:', config.method?.toUpperCase(), config.url, config.headers);
     return config;
   },
   (error) => Promise.reject(error)

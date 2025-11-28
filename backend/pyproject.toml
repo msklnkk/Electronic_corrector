@@ -16,11 +16,11 @@ greenlet = "^3.1.1"
 alembic = "^1.13.3"
 tenacity = "^9.0.0"
 pyjwt = "^2.10.0"
-passlib = "^1.7.4"
 python-jose = "^3.3.0"
 python-multipart = "^0.0.19"
-bcrypt = "^4.2.0"
 pydantic = {extras = ["email"], version = "^2.12.4"}
+bcrypt = "3.2.2"
+passlib = {version = "1.7.4", extras = ["bcrypt"]}
 
 
 [build-system]
