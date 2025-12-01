@@ -38,9 +38,9 @@ class UserRepository:
             raise UserNotFound(_id=user_id)
         return UserSchema.model_validate(obj=user)
 
-    async def get_user_by_login(self, session: AsyncSession, user_name: str) -> UserSchema | None:
+    async def get_user_by_login(self, session: AsyncSession, username: str) -> UserSchema | None:
         """Проверка существования пользователя по логину"""
-        query = select(self._collection).where(self._collection.username == user_name)
+        query = select(self._collection).where(self._collection.username == username)
         return await session.scalar(query)
 
     async def get_user_by_tg_username(self, session: AsyncSession, tg_username: str) -> Users | None:
@@ -50,14 +50,19 @@ class UserRepository:
 
     async def create_user(self, session: AsyncSession, user: UserCreate) -> UserSchema:
         # Проверяем логин на уникальность
-        exists_login = await self.get_user_by_login(session, user_name=user.user_name)
+        exists_login = await self.get_user_by_login(session, username=user.username)
         if exists_login:
-            raise UserNameAlreadyExists(login=user.user_name)
+            raise UserNameAlreadyExists(login=user.username)
 
         if user.tg_username:
             exists_tg = await self.get_user_by_tg_username(session, user.tg_username)
             if exists_tg:
                 raise UserTelegramAlreadyExists(tg_username=user.tg_username)
+
+        if user.telegram_id is not None:
+            exists = await self.get_user_by_telegram_id(session, user.telegram_id)
+            if exists:
+                raise UserTelegramAlreadyExists(tg_username=f"ID {user.telegram_id}")
 
         query = (
             insert(self._collection)
@@ -81,16 +86,21 @@ class UserRepository:
             raise UserNotFound(_id=user_id)
 
         # Проверяем уникальность логина при обновлении
-        if user.user_name and user.user_name != existing_user.username:
-            exists_login = await self.get_user_by_login(session, user.user_name)
+        if user.username and user.username != existing_user.username:
+            exists_login = await self.get_user_by_login(session, user.username)
             if exists_login:
-                raise UserNameAlreadyExists(login=user.user_name)
+                raise UserNameAlreadyExists(login=user.username)
 
         # Проверяем уникальность Telegram username
         if user.tg_username and user.tg_username != existing_user.tg_username:
             exists_tg = await self.get_user_by_tg_username(session, user.tg_username)
             if exists_tg:
                 raise UserTelegramAlreadyExists(tg_username=user.tg_username)
+
+        if user.telegram_id is not None and user.telegram_id != existing_user.telegram_id:
+            exists = await self.get_user_by_telegram_id(session, user.telegram_id)
+            if exists:
+                raise UserTelegramAlreadyExists(tg_username=f"ID {user.telegram_id}")
 
         query = (
             update(self._collection)
@@ -107,3 +117,23 @@ class UserRepository:
         result = await session.execute(query)
         if not result.rowcount:
             raise UserNotFound(_id=user_id)
+
+    async def get_user_by_telegram_id(self, session: AsyncSession, telegram_id: int) -> Users | None:
+        query = select(self._collection).where(self._collection.telegram_id == telegram_id)
+        return await session.scalar(query)
+
+    async def update_tg_subscription(
+            self,
+            session: AsyncSession,
+            user_id: int,
+            subscribed: bool
+    ) -> None:
+
+        query = (
+            update(self._collection)
+            .where(self._collection.user_id == user_id)
+            .values(is_tg_subscribed=subscribed)
+        )
+
+        await session.execute(query)
+        await session.commit()

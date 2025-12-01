@@ -1,7 +1,8 @@
 from decimal import Decimal
 from datetime import datetime, date
+from typing import Optional
 
-from sqlalchemy import String, ForeignKey, Integer, DateTime, Boolean, Text, Date, Numeric
+from sqlalchemy import String, ForeignKey, Integer, DateTime, Boolean, Text, Date, Numeric, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from project.infrastructure.postgres.database import Base
@@ -25,6 +26,10 @@ class Users(Base):
 
     tg_username: Mapped[str] = mapped_column(unique=True, nullable=True, comment="Telegram:")
     is_tg_subscribed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    telegram_id: Mapped[Optional[int]] = mapped_column(  # ← НОВОЕ ПОЛЕ
+        BigInteger, unique=True, nullable=True, comment="Telegram user ID (числовой)"
+    )
 
     theme: Mapped[str] = mapped_column(String(10), nullable=False, default="light")
     is_push_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

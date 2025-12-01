@@ -26,15 +26,18 @@ logger = logging.getLogger(__name__)
 async def register(user: AuthCredential) -> Token:
     logger.debug(f"Попытка регистрации нового пользователя: {user.login}")
     async with database.session() as session:
-        # Проверяем, существует ли пользователь с такой почтой
-        result = await session.execute(select(Users).where(Users.email == user.login))
-        existing_user = result.scalars().first()
-        if existing_user:
-            logger.warning(f"Попытка регистрации с существующей почтой: {user.login}")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Пользователь с такой почтой уже существует"
+        # Проверка email
+        exists_email = await session.scalar(select(Users).where(Users.email == user.login))
+        if exists_email:
+            raise HTTPException(409, "Пользователь с такой почтой уже существует")
+
+        # Проверка tg_username
+        if user.tg_username:
+            exists_tg = await session.scalar(
+                select(Users).where(Users.tg_username == user.tg_username)
             )
+            if exists_tg:
+                raise HTTPException(409, "Этот Telegram username уже занят")
 
         # Создаем нового пользователя
         db_user = Users(
@@ -44,8 +47,12 @@ async def register(user: AuthCredential) -> Token:
             email=user.login,
             username=user.login,
             password=get_password_hash(user.password),
+            tg_username=user.tg_username,  # None ок
             role="user",
-            is_admin=False
+            is_admin=False,
+            is_tg_subscribed=False,
+            theme="light",
+            is_push_enabled=False,
         )
         session.add(db_user)
         await session.flush()

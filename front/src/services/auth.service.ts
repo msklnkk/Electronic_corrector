@@ -13,6 +13,9 @@ export interface UserProfile {
   role: string;
   theme: string;
   is_push_enabled: boolean;
+  tg_username?: string | null;
+  telegram_id?: number | null;
+  is_tg_subscribed?: boolean;
   [key: string]: any;
 }
 

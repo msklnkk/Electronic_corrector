@@ -21,6 +21,8 @@ python-multipart = "^0.0.19"
 pydantic = {extras = ["email"], version = "^2.12.4"}
 bcrypt = "3.2.2"
 passlib = {version = "1.7.4", extras = ["bcrypt"]}
+requests = "^2.32.5"
+aiohttp = "^3.13.2"
 
 
 [build-system]

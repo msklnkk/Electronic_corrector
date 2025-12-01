@@ -41,14 +41,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
     try {
       if (isRegister) {
-  await AuthService.register({
+        await AuthService.register({
           first_name: firstName,
           surname_name: surname,
           patronomic_name: patronomic || " ",     
           login: email,                          
-          email: email,
           password: password,
-          tg_username: tgUsername,                
+          tg_username: tgUsername || " ",                
           // username не отправляем вообще — бэкенд его не ждёт
         });
       } else {
@@ -102,13 +101,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             />
             <TextField
               fullWidth
-              label="Telegram"
+              label="Telegram username"
               value={tgUsername}
-              onChange={(e) => setTgUsername(e.target.value.replace(/^@/, ''))}
+              onChange={(e) => setTgUsername(e.target.value.replace(/[@\s]/g, ''))}
               margin="normal"
-              required
+              // required
               placeholder="ivan_ivanov"
-              helperText="Без символа @"
+              helperText="Без @ и пробелов"
               InputProps={{
                 startAdornment: <InputAdornment position="start">@</InputAdornment>,
               }}

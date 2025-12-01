@@ -1,6 +1,7 @@
 from typing import Annotated
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from project.schemas.auth import TokenData
 from project.core.config import settings
@@ -20,7 +21,7 @@ from project.infrastructure.postgres.repository.review_repo import ReviewReposit
 from project.infrastructure.postgres.repository.status_repo import StatusRepository
 from project.infrastructure.postgres.repository.mistake_type_repo import MistakeTypeRepository
 from project.infrastructure.postgres.repository.mistake_repo import MistakeRepository
-
+from project.services.telegram import is_user_subscribed
 
 database = PostgresDatabase()
 user_repo = UserRepository()
@@ -68,3 +69,29 @@ async def check_for_admin_access(
             detail="Только админ имеет права добавлять/изменять/удалять данные"
         )
     return user
+
+
+async def require_tg_subscription(
+    current_user: UserSchema = Depends(get_current_user),
+    session: AsyncSession = Depends(database.session),
+):
+    if current_user.telegram_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Для проверки документов необходимо привязать Telegram-аккаунт и подписаться на канал."
+        )
+
+    # Проверяем актуальную подписку
+    actually_subscribed = await is_user_subscribed(current_user.telegram_id)
+
+    # Обновляем в базе, если статус изменился
+    if current_user.is_tg_subscribed != actually_subscribed:
+        await user_repo.update_tg_subscription(session, current_user.user_id, actually_subscribed)
+
+    if not actually_subscribed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Подпишитесь на канал @electronic_corrector, чтобы проверять документы. После подписки нажмите «Проверить подписку» или перезайдите."
+        )
+
+    return current_user

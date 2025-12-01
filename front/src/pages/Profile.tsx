@@ -1,6 +1,6 @@
 // src/pages/Profile.tsx
 import axios from '../api/axios.config';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Container,
   Paper,
@@ -26,6 +26,7 @@ interface User {
   theme: string;
   is_push_enabled: boolean;
   tg_username?: string | null;        // ← может быть null!
+  telegram_id?: number | null;
   is_tg_subscribed?: boolean;
 }
 
@@ -33,6 +34,95 @@ const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const telegramWidgetRef = useRef<HTMLDivElement>(null);
+
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState("");
+
+  const handleCheckSubscription = async () => {
+    setChecking(true);
+    setCheckError("");
+
+    try {
+      const response = await axios.post("/check-tg-subscription");
+
+      // Обновляем данные пользователя без перезагрузки
+      const { data } = await axios.get("/me");
+      setUser(data);
+
+      if (response.data.subscribed) {
+        alert("✅ Подписка подтверждена! Доступ открыт.");
+      } else {
+        alert("❌ Вы не подписаны. Подпишитесь и попробуйте снова.");
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Ошибка проверки подписки";
+      setCheckError(msg);
+      console.error(msg);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Динамическая загрузка Telegram Login Widget только когда он нужен
+  useEffect(() => {
+    if (!telegramWidgetRef.current || user?.tg_username) return;
+
+    // Callback от Telegram
+    (window as any).onTelegramAuth = async (tgUser: any) => {
+      try {
+        // Формируем ровно те данные, которые ожидает Telegram для проверки подписи
+        const authData = {
+          id: tgUser.id,
+          first_name: tgUser.first_name || '',
+          last_name: tgUser.last_name || '',
+          username: tgUser.username || '',
+          photo_url: tgUser.photo_url || '',
+          auth_date: tgUser.auth_date,
+          hash: tgUser.hash,
+        };
+
+        const response = await axios.post("/telegram-auth", authData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        });
+
+        if (response.data.success) {
+          alert("✅ Telegram успешно привязан и подписка проверена!");
+          // Обновляем профиль без перезагрузки
+          const { data } = await axios.get("/me");
+          setUser(data);
+        }
+      } catch (err: any) {
+        console.error("Telegram auth error:", err.response?.data);
+        if (err.response?.status === 403) {
+          alert("❌ Ошибка подписи или Telegram уже привязан к другому аккаунту");
+        } else {
+          alert("❌ Произошла ошибка при привязке Telegram");
+        }
+      }
+    };
+
+    // Создаём и вставляем скрипт виджета
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", "elecrtonic_corrector_bot"); // ← ваш бот
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
+
+    telegramWidgetRef.current.appendChild(script);
+
+    // Очистка при размонтировании
+    return () => {
+      if (telegramWidgetRef.current) {
+        telegramWidgetRef.current.innerHTML = "";
+      }
+      delete (window as any).onTelegramAuth;
+    };
+  }, [user?.tg_username]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -135,17 +225,72 @@ const Profile = () => {
                 </Box>
               )}
 
-              {/* ТЕЛЕГРАМ — ГАРАНТИРОВАННО ВИДЕН */}
+              {/* БЛОК TELEGRAM */}
               <Box>
                 <Typography variant="body2" color="text.secondary">Telegram</Typography>
+
                 {user.tg_username ? (
-                  <Typography fontWeight={700} color="primary" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <TelegramIcon fontSize="small" /> @{user.tg_username}
-                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <TelegramIcon color="primary" />
+                      <Typography fontWeight={700} color="primary">
+                        @{user.tg_username.replace("@", "")}
+                      </Typography>
+                      {user.is_tg_subscribed ? (
+                        <Chip label="Подписан" color="success" size="small" />
+                      ) : (
+                        <Chip label="Не подписан" color="error" size="small" />
+                      )}
+                    </Stack>
+
+                    {!user.is_tg_subscribed && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" color="error.main">
+                          Подпишитесь на канал, чтобы снять все ограничения на проверку документов
+                        </Typography>
+                        <Stack direction="row" spacing={2} sx={{ mt: 1.5 }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            href="https://t.me/electronic_corrector"
+                            target="_blank"
+                          >
+                            Перейти в канал
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={handleCheckSubscription}
+                            disabled={checking}
+                          >
+                            {checking ? "Проверка..." : "Проверить подписку"}
+                          </Button>
+                        </Stack>
+
+                        {checkError && (
+                          <Typography variant="caption" color="error" sx={{ mt: 1, display: "block" }}>
+                            {checkError}
+                          </Typography>
+                        )}
+
+                      </Box>
+                    )}
+                  </Box>
                 ) : (
-                  <Typography fontWeight={500} color="text.secondary">
-                    Не указан
-                  </Typography>
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography fontWeight={500} color="text.secondary">
+                      Не привязан
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2 }}>
+                      Привяжите Telegram-аккаунт, чтобы получить неограниченную проверку документов
+                    </Typography>
+
+                    {/* Виджет появится здесь */}
+                    <Box sx={{ textAlign: "center", minHeight: 80 }}>
+                      <div ref={telegramWidgetRef} />
+                    </Box>
+                  </Box>
                 )}
               </Box>
 

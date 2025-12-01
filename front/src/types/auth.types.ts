@@ -2,9 +2,8 @@
 export interface IRegisterRequest {
   first_name: string;
   surname_name: string;
-  patronomic_name: string;        
+  patronomic_name: string | null;        
   login: string;                  
-  email: string;
   password: string;
   tg_username: string;            
   // username?: string;       

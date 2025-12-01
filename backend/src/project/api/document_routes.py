@@ -10,8 +10,8 @@ from datetime import datetime
 from project.api.depends import (
     database,
     get_current_user,
-    document_repo, 
-    check_for_admin_access,
+    document_repo,
+    check_for_admin_access, require_tg_subscription,
 )
 from project.schemas.documents import (
     DocumentCreate, 
@@ -23,7 +23,7 @@ from project.schemas.documents import (
 from project.core.exceptions import DocumentNotFound
 from project.core.config import settings
 
-document_routes = APIRouter()
+document_routes = APIRouter(dependencies=[Depends(require_tg_subscription)])
 
 
 @document_routes.get(

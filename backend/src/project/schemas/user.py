@@ -13,6 +13,7 @@ class UserBase(BaseModel):
     role: str = "user"
     is_admin: bool = False
     tg_username: str | None = None
+    telegram_id: int | None = None
     is_tg_subscribed: bool = False
     theme: str = "light"
     is_push_enabled: bool = False
@@ -33,6 +34,7 @@ class UserUpdate(BaseModel):
     is_admin: Optional[bool] = None
 
     tg_username: Optional[str] = None
+    telegram_id: Optional[int] = None
     is_tg_subscribed: Optional[bool] = None
 
     theme: Optional[str] = None

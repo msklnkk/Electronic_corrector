@@ -195,7 +195,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
 
             <IconButton
               component="a"
-              href="https://t.me/elecrtonic_corrector"
+              href="https://t.me/electronic_corrector"
               target="_blank"
             >
               <Telegram sx={{ color: "#229ED9" }} />
