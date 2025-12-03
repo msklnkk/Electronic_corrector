@@ -265,3 +265,27 @@ async def upload_document_file(
         )
     finally:
         await file.close()
+
+@document_routes.post("/{document_id}/check-gost")
+async def check_document_gost(
+    document_id: int,
+    current_user=Depends(get_current_user),
+):
+    """Запустить проверку ГОСТ для документа"""
+    async with database.session() as session:
+        # Получаем документ асинхронно через репозиторий
+        document = await document_repo.get_document_by_id(session, document_id)
+        
+        if not document:
+            raise HTTPException(404, "Документ не найден")
+        
+        # Проверяем права доступа
+        if not current_user.is_admin and document.user_id != current_user.user_id:
+            raise HTTPException(403, "Нет доступа к документу")
+        
+        # Создаем сервис и запускаем проверку
+        # Предполагается, что GostCheckService принимает сессию в конструкторе
+        service = GostCheckService(session)
+        check_id = await service.start_gost_check(document_id)
+        
+        return {"message": "Проверка ГОСТ запущена", "check_id": check_id}
