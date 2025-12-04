@@ -1,57 +1,83 @@
 // src/api/axios.config.ts
 import axios from 'axios';
 
-const instance = axios.create({
-  baseURL: 'http://localhost:8020',
-  // headers: {
-  //   'Content-Type': 'application/json', // по умолчанию JSON
-  // },
-  withCredentials: true,
+const api = axios.create({
+  baseURL: 'http://localhost:8020', // ← твой бэкенд
+  withCredentials: true,           // если используешь куки (можно оставить)
 });
 
+// ────────────────────────────────
 // Интерцептор запросов
-instance.interceptors.request.use(
+// ────────────────────────────────
+api.interceptors.request.use(
   (config) => {
+    // Добавляем токен из localStorage
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Для /token — меняем Content-Type на form-data
+    // Для логина — application/x-www-form-urlencoded
     if (config.url?.includes('/token')) {
       config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
-    console.log('Request:', config.method?.toUpperCase(), config.url, config.headers);
+    // Для загрузки файлов — НЕ трогаем Content-Type (браузер сам поставит boundary)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']; // важно!
+    }
+
+    // Красивый лог в консоль
+    console.log(
+      `%c→ ${config.method?.toUpperCase()} ${config.url}`,
+      'color: #8b5cf6; font-weight: bold;',
+      config.data instanceof FormData ? '[FormData]' : config.data || ''
+    );
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// ────────────────────────────────
 // Интерцептор ответов
-instance.interceptors.response.use(
+// ────────────────────────────────
+api.interceptors.response.use(
   (response) => {
-    console.log('Response:', response.status, response.config.url);
+    console.log(
+      `%c← ${response.status} ${response.config.url}`,
+      'color: #10b981; font-weight: bold;',
+      response.data
+    );
     return response;
   },
   (error) => {
-    // ВОТ ЭТО САМОЕ ГЛАВНОЕ — подробный вывод 422
-    if (error.response?.status === 422) {
-      console.error('%c422 — БЭКЕНД НЕ ПРИНЯЛ ДАННЫЕ РЕГИСТРАЦИИ:', 'color: red; font-size: 16px; font-weight: bold');
-      console.error('Точное тело ошибки от FastAPI:');
-      console.error(JSON.stringify(error.response.data, null, 2));
-    } else {
-      console.error('Ошибка:', error.response?.status, error.response?.data || error.message);
-    }
+    const status = error.response?.status;
+    const url = error.config?.url;
 
-    if (error.response?.status === 401) {
+    // 422 — подробно показываем, что именно не понравилось бэкенду
+    if (status === 422) {
+      console.error('%c422 Unprocessable Entity', 'color: red; font-size: 18px; font-weight: bold;');
+      console.error('URL:', url);
+      console.error('Ошибки валидации от FastAPI:');
+      console.table(error.response.data.detail);
+    } 
+    // 401 — токен протух или его нет
+    else if (status === 401) {
+      console.warn('401 — Токен недействителен, редиректим на логин');
       localStorage.removeItem('access_token');
       window.location.href = '/login';
+    } 
+    // Любая другая ошибка
+    else {
+      console.error(`%cОшибка ${status || 'Network'}`, 'color: red; font-weight: bold;');
+      console.error('URL:', url);
+      console.error('Сообщение:', error.response?.data?.detail || error.message);
     }
 
-    const message = error.response?.data?.detail || 'Ошибка сервера';
-    return Promise.reject(new Error(message));
+    // Пробрасываем дальше, чтобы catch в компоненте сработал
+    return Promise.reject(error);
   }
 );
 
-export default instance;
+export default api;

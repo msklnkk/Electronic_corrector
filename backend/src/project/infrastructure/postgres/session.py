@@ -1,10 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from project.core.config import settings  # ← ИСПРАВЛЕНО: убрал src. и .py, исправил сonfig
+from project.core.config import settings
 from typing import AsyncGenerator
 
 # Создаём движок
-engine = create_async_engine(settings.postgres_url, echo=False)  # ← ИСПРАВЛЕНО: postgres_url
+engine = create_async_engine(settings.postgres_url, echo=False)
 
 # Фабрика сессий
 async_session = sessionmaker(

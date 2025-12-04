@@ -1,5 +1,6 @@
 // src/pages/CheckDocument.tsx
 import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom"; 
 import api from '../api/axios.config';
 import {
   Container,
@@ -26,6 +27,8 @@ import {
 } from "@mui/icons-material";
 
 const CheckDocumentPage: React.FC = () => {
+  const navigate = useNavigate();
+
   // Состояние для выбора типа проверки
   const [selectedType, setSelectedType] = useState("gost");
 
@@ -57,37 +60,56 @@ const CheckDocumentPage: React.FC = () => {
     }
   };
 
-  // отправка файла
+  // ПОЛНАЯ РАБОЧАЯ ПРОВЕРКА — оформление не тронуто!
   const handleUpload = async () => {
-    if (!file) {
-      alert("Выберите файл!");
-      return;
-    }
+  if (!file) {
+    alert("Выберите файл!");
+    return;
+  }
 
-    setUploading(true);
+  setUploading(true);
 
+  try {
+    // 1. Загружаем файл — и всё! Документ уже создаётся внутри /upload
     const formData = new FormData();
-    formData.append("file", file); // имя параметра должно совпадать с FastAPI
+    formData.append("file", file);
 
-    try {
-      const res = await api.post("/upload", formData); // <-- axios instance автоматически добавит Authorization
-      console.log("UPLOAD SUCCESS:", res.data);
-      alert("Файл успешно загружен!");
-    } catch (err: any) {
-      console.error(err);
-      alert("Ошибка загрузки: " + err.message);
-    } finally {
-      setUploading(false);
+    const uploadRes = await api.post("/upload", formData);
+    const { document_id } = uploadRes.data; // ← вот он!
+
+    console.log("Документ создан, ID:", document_id);
+
+    // 2. Сразу запускаем ГОСТ-проверку
+    const checkRes = await api.post("/gost/start", {
+      document_id: document_id
+    });
+
+    const checkId = checkRes.data.check_id;
+
+    alert("Проверка ГОСТ запущена!");
+    navigate(`/check-result/${checkId}`);
+
+  } catch (err: any) {
+    console.error("Ошибка:", err.response?.data);
+
+    if (err.response?.status === 422) {
+      const errors = err.response.data.detail || [];
+      const text = errors
+        .map((e: any) => `• ${e.loc?.slice(1).join(" → ")}: ${e.msg}`)
+        .join("\n");
+      alert("Ошибка:\n\n" + text);
+    } else {
+      alert("Ошибка: " + (err.response?.data?.detail || err.message));
     }
-  };
-
-
-
+  } finally {
+    setUploading(false);
+  }
+};
   return (
     <>
       <Container maxWidth="lg" sx={{ py: 6 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
-          {/* Левая часть */}
+          {/* Левая часть — полностью твоё оформление */}
           <Stack flex={2} spacing={3}>
             <Paper 
               variant="outlined" 
@@ -127,7 +149,6 @@ const CheckDocumentPage: React.FC = () => {
                 или нажмите для выбора файла <br /> Максимальный размер: 50 МБ
               </Typography>
               
-              {/* HIDDEN input */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -189,12 +210,12 @@ const CheckDocumentPage: React.FC = () => {
                 onClick={handleUpload}
                 sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}
               >
-                {uploading ? "Загрузка..." : "Начать проверку"}
+                {uploading ? "Проверка запущена..." : "Начать проверку"}
               </Button>
             </Box>
           </Stack>
 
-          {/* Правая часть */}
+          {/* Правая часть — полностью твоя */}
           <Stack flex={1} spacing={3}>
             <Paper sx={{ p: 3, borderRadius: "12px" }}>
               <Typography variant="h6" gutterBottom>Пример отчёта</Typography>

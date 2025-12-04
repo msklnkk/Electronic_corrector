@@ -25,7 +25,7 @@ interface User {
   role: string;
   theme: string;
   is_push_enabled: boolean;
-  tg_username?: string | null;        // ← может быть null!
+  tg_username?: string | null;
   telegram_id?: number | null;
   is_tg_subscribed?: boolean;
 }
@@ -36,93 +36,92 @@ const Profile = () => {
   const navigate = useNavigate();
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
 
-  const [checking, setChecking] = useState(false);
-  const [checkError, setCheckError] = useState("");
+  // ─────────────────────────────────────────────────────────────────────
+  // ВСЁ, ЧТО СВЯЗАНО С ПРОВЕРКОЙ ПОДПИСКИ НА ТЕЛЕГРАМ — ЗАКOMМЕНТИРОВАНО
+  // ─────────────────────────────────────────────────────────────────────
+  // const [checking, setChecking] = useState(false);
+  // const [checkError, setCheckError] = useState("");
 
-  const handleCheckSubscription = async () => {
-    setChecking(true);
-    setCheckError("");
+  // const handleCheckSubscription = async () => {
+  //   setChecking(true);
+  //   setCheckError("");
 
-    try {
-      const response = await axios.post("/check-tg-subscription");
+  //   try {
+  //     const response = await axios.post("/check-tg-subscription");
 
-      // Обновляем данные пользователя без перезагрузки
-      const { data } = await axios.get("/me");
-      setUser(data);
+  //     const { data } = await axios.get("/me");
+  //     setUser(data);
 
-      if (response.data.subscribed) {
-        alert("✅ Подписка подтверждена! Доступ открыт.");
-      } else {
-        alert("❌ Вы не подписаны. Подпишитесь и попробуйте снова.");
-      }
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || "Ошибка проверки подписки";
-      setCheckError(msg);
-      console.error(msg);
-    } finally {
-      setChecking(false);
-    }
-  };
+  //     if (response.data.subscribed) {
+  //       alert("Подписка подтверждена! Доступ открыт.");
+  //     } else {
+  //       alert("Вы не подписаны. Подпишитесь и попробуйте снова.");
+  //     }
+  //   } catch (err: any) {
+  //     const msg = err.response?.data?.detail || "Ошибка проверки подписки";
+  //     setCheckError(msg);
+  //     console.error(msg);
+  //   } finally {
+  //     setChecking(false);
+  //   }
+  // };
 
-  // Динамическая загрузка Telegram Login Widget только когда он нужен
-  useEffect(() => {
-    if (!telegramWidgetRef.current || user?.tg_username) return;
+  // ─────────────────────────────────────────────────────────────────────
+  // Виджет авторизации Telegram — тоже отключён
+  // ─────────────────────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   if (!telegramWidgetRef.current || user?.tg_username) return;
 
-    // Callback от Telegram
-    (window as any).onTelegramAuth = async (tgUser: any) => {
-      try {
-        // Формируем ровно те данные, которые ожидает Telegram для проверки подписи
-        const authData = {
-          id: tgUser.id,
-          first_name: tgUser.first_name || '',
-          last_name: tgUser.last_name || '',
-          username: tgUser.username || '',
-          photo_url: tgUser.photo_url || '',
-          auth_date: tgUser.auth_date,
-          hash: tgUser.hash,
-        };
+  //   (window as any).onTelegramAuth = async (tgUser: any) => {
+  //     try {
+  //       const authData = {
+  //         id: tgUser.id,
+  //         first_name: tgUser.first_name || '',
+  //         last_name: tgUser.last_name || '',
+  //         username: tgUser.username || '',
+  //         photo_url: tgUser.photo_url || '',
+  //         auth_date: tgUser.auth_date,
+  //         hash: tgUser.hash,
+  //       };
 
-        const response = await axios.post("/telegram-auth", authData, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        });
+  //       const response = await axios.post("/telegram-auth", authData, {
+  //         headers: {
+  //           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+  //         },
+  //       });
 
-        if (response.data.success) {
-          alert("✅ Telegram успешно привязан и подписка проверена!");
-          // Обновляем профиль без перезагрузки
-          const { data } = await axios.get("/me");
-          setUser(data);
-        }
-      } catch (err: any) {
-        console.error("Telegram auth error:", err.response?.data);
-        if (err.response?.status === 403) {
-          alert("❌ Ошибка подписи или Telegram уже привязан к другому аккаунту");
-        } else {
-          alert("❌ Произошла ошибка при привязке Telegram");
-        }
-      }
-    };
+  //       if (response.data.success) {
+  //         alert("Telegram успешно привязан и подписка проверена!");
+  //         const { data } = await axios.get("/me");
+  //         setUser(data);
+  //       }
+  //     } catch (err: any) {
+  //       console.error("Telegram auth error:", err.response?.data);
+  //       if (err.response?.status === 403) {
+  //         alert("Ошибка подписи или Telegram уже привязан к другому аккаунту");
+  //       } else {
+  //         alert("Произошла ошибка при привязке Telegram");
+  //       }
+  //     }
+  //   };
 
-    // Создаём и вставляем скрипт виджета
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", "elecrtonic_corrector_bot"); // ← ваш бот
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-onauth", "onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
+  //   const script = document.createElement("script");
+  //   script.src = "https://telegram.org/js/telegram-widget.js?22";
+  //   script.async = true;
+  //   script.setAttribute("data-telegram-login", "elecrtonic_corrector_bot");
+  //   script.setAttribute("data-size", "large");
+  //   script.setAttribute("data-onauth", "onTelegramAuth(user)");
+  //   script.setAttribute("data-request-access", "write");
 
-    telegramWidgetRef.current.appendChild(script);
+  //   telegramWidgetRef.current.appendChild(script);
 
-    // Очистка при размонтировании
-    return () => {
-      if (telegramWidgetRef.current) {
-        telegramWidgetRef.current.innerHTML = "";
-      }
-      delete (window as any).onTelegramAuth;
-    };
-  }, [user?.tg_username]);
+  //   return () => {
+  //     if (telegramWidgetRef.current) {
+  //       telegramWidgetRef.current.innerHTML = "";
+  //     }
+  //     delete (window as any).onTelegramAuth;
+  //   };
+  // }, [user?.tg_username]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -197,7 +196,6 @@ const Profile = () => {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* ВСЯ ИНФОРМАЦИЯ — ЧИТАЕМАЯ */}
             <Stack spacing={2.5}>
               <Box>
                 <Typography variant="body2" color="text.secondary">Логин</Typography>
@@ -225,7 +223,7 @@ const Profile = () => {
                 </Box>
               )}
 
-              {/* БЛОК TELEGRAM */}
+              {/* БЛОК TELEGRAM — только отображение, без кнопок и проверок */}
               <Box>
                 <Typography variant="body2" color="text.secondary">Telegram</Typography>
 
@@ -236,14 +234,16 @@ const Profile = () => {
                       <Typography fontWeight={700} color="primary">
                         @{user.tg_username.replace("@", "")}
                       </Typography>
-                      {user.is_tg_subscribed ? (
+                      {/* Чип с подпиской закомментирован */}
+                      {/* {user.is_tg_subscribed ? (
                         <Chip label="Подписан" color="success" size="small" />
                       ) : (
                         <Chip label="Не подписан" color="error" size="small" />
-                      )}
+                      )} */}
                     </Stack>
 
-                    {!user.is_tg_subscribed && (
+                    {/* Весь блок с кнопками и предупреждениями — закомментирован */}
+                    {/* {!user.is_tg_subscribed && (
                       <Box sx={{ mt: 2 }}>
                         <Typography variant="body2" color="error.main">
                           Подпишитесь на канал, чтобы снять все ограничения на проверку документов
@@ -272,9 +272,8 @@ const Profile = () => {
                             {checkError}
                           </Typography>
                         )}
-
                       </Box>
-                    )}
+                    )} */}
                   </Box>
                 ) : (
                   <Box sx={{ mt: 1.5 }}>
@@ -282,14 +281,10 @@ const Profile = () => {
                       Не привязан
                     </Typography>
 
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 2 }}>
-                      Привяжите Telegram-аккаунт, чтобы получить неограниченную проверку документов
-                    </Typography>
-
-                    {/* Виджет появится здесь */}
-                    <Box sx={{ textAlign: "center", minHeight: 80 }}>
+                    {/* Виджет авторизации отключён — но код остался */}
+                    {/* <Box sx={{ textAlign: "center", minHeight: 80 }}>
                       <div ref={telegramWidgetRef} />
-                    </Box>
+                    </Box> */}
                   </Box>
                 )}
               </Box>
@@ -313,7 +308,7 @@ const Profile = () => {
           </Paper>
         </Box>
 
-        {/* ПРАВАЯ КОЛОНКА — БЕЗ ТЕЛЕГРАМА, ТОЛЬКО ПУШ */}
+        {/* ПРАВАЯ КОЛОНКА — БЕЗ ИЗМЕНЕНИЙ */}
         <Box flex={2} width="100%">
           <Stack spacing={4}>
             <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>

@@ -5,7 +5,8 @@ import { Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Welcome from "./pages/Welcome";
 import CheckDocumentPage from "./pages/CheckDocument";
-import Profile from "./pages/Profile";         
+import CheckResult from "./pages/CheckResult";
+import Profile from "./pages/Profile";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 
@@ -31,21 +32,20 @@ function App() {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={<Login />} />
-        
-        {/* Защищённые маршруты */}
+
         <Route
           path="/check"
           element={<ProtectedRoute><CheckDocumentPage /></ProtectedRoute>}
         />
-        
-        {/* СТРАНИЦА ПРОФИЛЯ */}
+
+        <Route 
+          path="/check-result/:id" 
+          element={<ProtectedRoute><CheckResult /></ProtectedRoute>} 
+        />
+
         <Route
           path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute><Profile /></ProtectedRoute>}
         />
 
         <Route path="*" element={<Welcome />} />
