@@ -60,7 +60,6 @@ const CheckDocumentPage: React.FC = () => {
     }
   };
 
-  // ПОЛНАЯ РАБОЧАЯ ПРОВЕРКА — оформление не тронуто!
   const handleUpload = async () => {
   if (!file) {
     alert("Выберите файл!");
@@ -70,37 +69,27 @@ const CheckDocumentPage: React.FC = () => {
   setUploading(true);
 
   try {
-    // 1. Загружаем файл — и всё! Документ уже создаётся внутри /upload
     const formData = new FormData();
     formData.append("file", file);
 
     const uploadRes = await api.post("/upload", formData);
-    const { document_id } = uploadRes.data; // ← вот он!
+    const { document_id } = uploadRes.data;
 
-    console.log("Документ создан, ID:", document_id);
+    console.log("Документ загружен, ID:", document_id);
 
-    // 2. Сразу запускаем ГОСТ-проверку
-    const checkRes = await api.post("/gost/start", {
+    // ПРАВИЛЬНЫЙ ПУТЬ!
+    const checkRes = await api.post("/gost-check/start", {
       document_id: document_id
     });
 
-    const checkId = checkRes.data.check_id;
+    const checkId = checkRes.data.check_id;  
 
     alert("Проверка ГОСТ запущена!");
-    navigate(`/check-result/${checkId}`);
+    navigate(`/check-result/${checkId}`);  
 
   } catch (err: any) {
     console.error("Ошибка:", err.response?.data);
-
-    if (err.response?.status === 422) {
-      const errors = err.response.data.detail || [];
-      const text = errors
-        .map((e: any) => `• ${e.loc?.slice(1).join(" → ")}: ${e.msg}`)
-        .join("\n");
-      alert("Ошибка:\n\n" + text);
-    } else {
-      alert("Ошибка: " + (err.response?.data?.detail || err.message));
-    }
+    alert("Ошибка: " + (err.response?.data?.detail || err.message));
   } finally {
     setUploading(false);
   }
