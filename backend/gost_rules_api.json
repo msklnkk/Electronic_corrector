@@ -1,0 +1,78 @@
+[
+  {
+    "id": "5.1_required_elements",
+    "section": "5.1",
+    "title": "Обязательные структурные элементы",
+    "description": "Проверка наличия всех обязательных структурных элементов работы",
+    "type": "structure",
+    "severity": "critical",
+    "check_type": "list_presence",
+    "expected_value": [
+      "титульный лист",
+      "содержание",
+      "определения",
+      "обозначения и сокращения",
+      "введение",
+      "основная часть",
+      "заключение",
+      "список использованных источников",
+      "приложения"
+    ]
+  },
+  {
+    "id": "5.6_introduction",
+    "section": "5.6",
+    "title": "Содержание введения",
+    "description": "Проверка содержания введения",
+    "type": "structure",
+    "severity": "warning",
+    "check_type": "list_presence",
+    "expected_value": [
+      "состояние разработок по теме",
+      "обоснование актуальности",
+      "обоснование новизны",
+      "связь с другими работами",
+      "цель работы",
+      "задачи работы"
+    ]
+  },
+  {
+    "id": "6.1.1_font",
+    "section": "6.1.1",
+    "title": "Основные требования к оформлению",
+    "description": "Проверка основных параметров форматирования текста",
+    "type": "formatting",
+    "severity": "critical",
+    "check_type": "object_equals",
+    "expected_value": {
+      "font_family": "Times New Roman",
+      "font_size": 14,
+      "line_spacing": 1.5
+    }
+  },
+  {
+    "id": "6.1.1_margins",
+    "section": "6.1.1",
+    "title": "Поля страницы",
+    "description": "Проверка полей страницы",
+    "type": "formatting",
+    "severity": "critical",
+    "check_type": "object_equals",
+    "expected_value": {
+      "left": 25,
+      "right": 15,
+      "top": 20,
+      "bottom": 20
+    }
+  },
+  {
+    "id": "6.1.2_paragraph",
+    "section": "6.1.2",
+    "title": "Абзацный отступ",
+    "description": "Проверка абзацного отступа",
+    "type": "formatting",
+    "severity": "warning",
+    "check_type": "equals",
+    "expected_value": 1.25
+  }
+]
