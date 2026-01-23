@@ -1,0 +1,98 @@
+{
+  "version": "1.0",
+  "created_date": "2024-01-15",
+  "gost_name": "ГОСТ 7.32-2017. Отчет о научно-исследовательской работе. Структура и правила оформления",
+  "rules": {
+    "structure": {
+      "5.1_required_elements": {
+        "id": "5.1_required_elements",
+        "section": "5.1",
+        "title": "Обязательные структурные элементы",
+        "content": "Структурными элементами курсовой работы (проекта) и выпускной квалификационной работы являются: титульный лист; содержание; определения; обозначения и сокращения; введение; основная часть; заключение; список использованных источников; приложения.",
+        "rule_type": "structure",
+        "field": "required_elements",
+        "expected_value": [
+          "титульный лист",
+          "содержание",
+          "определения",
+          "обозначения и сокращения",
+          "введение",
+          "основная часть",
+          "заключение",
+          "список использованных источников",
+          "приложения"
+        ],
+        "check_type": "list_presence",
+        "severity": "critical",
+        "description": "Проверка наличия всех обязательных структурных элементов работы"
+      },
+      "5.6_introduction": {
+        "id": "5.6_introduction",
+        "section": "5.6",
+        "title": "Содержание введения",
+        "content": "Введение должно включать: общую информацию о состоянии разработок по выбранной теме; обоснование актуальности и новизны темы, связь данной работы с другими научно-исследовательскими работами; цель работы и решаемые задачи.",
+        "rule_type": "structure",
+        "field": "introduction_content",
+        "expected_value": [
+          "состояние разработок по теме",
+          "обоснование актуальности",
+          "обоснование новизны",
+          "связь с другими работами",
+          "цель работы",
+          "задачи работы"
+        ],
+        "check_type": "list_presence",
+        "severity": "warning",
+        "description": "Проверка содержания введения"
+      }
+    },
+    "formatting": {
+      "6.1.1_font": {
+        "id": "6.1.1_font",
+        "section": "6.1.1",
+        "title": "Основные требования к оформлению",
+        "content": "Текст работы печатают шрифтом Times New Roman, 14 пт, через 1,5 интервала.",
+        "rule_type": "formatting",
+        "field": "font_settings",
+        "expected_value": {
+          "font_family": "Times New Roman",
+          "font_size": 14,
+          "line_spacing": 1.5
+        },
+        "check_type": "object_equals",
+        "severity": "critical",
+        "description": "Проверка основных параметров форматирования текста"
+      },
+      "6.1.1_margins": {
+        "id": "6.1.1_margins",
+        "section": "6.1.1",
+        "title": "Поля страницы",
+        "content": "Поля: левое - 25 мм, правое - 15 мм, верхнее и нижнее - 20 мм.",
+        "rule_type": "formatting",
+        "field": "page_margins",
+        "expected_value": {
+          "left": 25,
+          "right": 15,
+          "top": 20,
+          "bottom": 20
+        },
+        "check_type": "object_equals",
+        "severity": "critical",
+        "description": "Проверка полей страницы"
+      },
+      "6.1.2_paragraph": {
+        "id": "6.1.2_paragraph",
+        "section": "6.1.2",
+        "title": "Абзацный отступ",
+        "content": "Абзацный отступ должен быть одинаковым по всему тексту и равен 1,25 см.",
+        "rule_type": "formatting",
+        "field": "paragraph_indent",
+        "expected_value": 1.25,
+        "check_type": "equals",
+        "severity": "warning",
+        "description": "Проверка абзацного отступа",
+        "unit": "см"
+      }
+    }
+  }
+}
