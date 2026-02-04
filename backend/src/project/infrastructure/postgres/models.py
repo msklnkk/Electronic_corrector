@@ -89,6 +89,7 @@ class Check(Base):
     checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     result: Mapped[str] = mapped_column(String, nullable=True)
     report_path: Mapped[str] = mapped_column(String, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
 
     document: Mapped["Documents"] = relationship("Documents", back_populates="checks")
     standard: Mapped["Standart"] = relationship("Standart", back_populates="checks")

@@ -9,6 +9,7 @@ class CheckBase(BaseModel):
     checked_at: datetime | None = None
     result: str | None = None    # success / warnings / failed
     report_path: str | None = None
+    score: int | None = None
 
 
 class CheckCreate(CheckBase):

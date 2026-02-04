@@ -1,8 +1,8 @@
-# src/project/gost_checker/checker.py
 from typing import Dict, List, Any, Optional
 import json
 from datetime import datetime
 from .models import DocumentCheckReport, CheckResult, RuleSeverity
+from .parser import extract_document_data
 from .rule_checker import GOSTRuleChecker, ValidationResult
 
 class GOSTDocumentChecker:
@@ -15,10 +15,12 @@ class GOSTDocumentChecker:
             print(f"❌ Ошибка инициализации проверщика: {e}")
             raise
     
-    def check_document(self, document_data: Dict, document_id: str = None) -> DocumentCheckReport:
+    async def check_document(self, file_path: str, document_id: str = None) -> DocumentCheckReport:
         """Основной метод проверки документа"""
         print(f"🔍 Начинаю проверку документа {document_id or 'без ID'}...")
-        
+
+        document_data = await extract_document_data(file_path)
+
         all_results = []
         
         try:

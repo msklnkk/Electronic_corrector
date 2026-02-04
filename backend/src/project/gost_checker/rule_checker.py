@@ -1,4 +1,3 @@
-# src/project/gost_checker/rule_checker.py
 import json
 import re
 import os
@@ -41,35 +40,23 @@ class ValidationResult:
 
 class GOSTRuleChecker:
     def __init__(self, rules_file: str = None):
-        # Определяем путь к файлу правил
+        # Если путь не передан, ищем файл рядом с rule_checker.py
         if rules_file is None:
-            # Пробуем найти файл в разных местах
-            current_dir = Path(__file__).parent
-            possible_paths = [
-                current_dir / "manual_rules.json",
-                Path.cwd() / "src" / "project" / "gost_checker" / "manual_rules.json",
-                Path.cwd() / "manual_rules.json",
-            ]
-            
-            for path in possible_paths:
-                if path.exists():
-                    rules_file = str(path)
-                    break
-        
-        if rules_file is None or not os.path.exists(rules_file):
-            raise FileNotFoundError(f"Файл правил не найден. Искали в: {[str(p) for p in possible_paths]}")
-        
+            rules_file = Path(__file__).parent / "manual_rules.json"
+
+        # Проверка существования файла
+        if not Path(rules_file).exists():
+            raise FileNotFoundError(
+                f"Файл правил не найден. Ожидался путь: {rules_file}"
+            )
+
         print(f"Загружаю правила из: {rules_file}")
-        
-        try:
-            with open(rules_file, 'r', encoding='utf-8') as f:
-                self.rules_data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Ошибка при чтении JSON файла: {e}")
-        
+
+        with open(rules_file, 'r', encoding='utf-8') as f:
+            self.rules_data = json.load(f)
+
         self.rules = {}
         self._load_rules()
-    
     def _load_rules(self):
         """Загружает все правила из файла"""
         print("Загружаю правила...")
