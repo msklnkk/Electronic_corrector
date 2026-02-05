@@ -133,8 +133,9 @@ async def get_gost_check_result(
             is_compliant=result['status'] == 'perfect',
             score=document.score,
             status=result['status'],
-            errors=[],  # Можно получить из Mistake
-            warnings=[],
+            filename=result.get('filename', 'unknown'),
+            errors=result['errors'],
+            warnings=result['warnings'],
             details={},
             checked_at=result['checked_at']
         )

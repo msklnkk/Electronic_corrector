@@ -53,15 +53,43 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         await authLogin(email, password);
       }
 
-      // Загрузка актуального профиль
+      // Загрузка актуального профиля
       const { data } = await axios.get("/me");
       AuthService.setUserProfile(data);
 
       onSuccess?.();
       navigate('/check');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Ошибка авторизации');
+        const detail = err?.response?.data?.detail;
+
+      // FastAPI validation error: detail = массив
+      if (Array.isArray(detail)) {
+        const msg = detail
+          .map((e) => {
+            const loc = Array.isArray(e.loc) ? e.loc.join(" → ") : "";
+            return loc ? `${loc}: ${e.msg}` : e.msg;
+          })
+          .join("\n");
+
+        setError(msg || "Ошибка авторизации");
+        return;
+      }
+
+      // detail = строка
+      if (typeof detail === "string") {
+        setError(detail);
+        return;
+      }
+
+      // detail = объект
+      if (detail && typeof detail === "object") {
+        setError(detail.msg || "Ошибка авторизации");
+        return;
+      }
+
+      setError("Ошибка авторизации");
     }
+
   };
 
   return (
@@ -70,7 +98,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         {isRegister ? 'Создание аккаунта' : 'Вход в аккаунт'}
       </Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2, whiteSpace: "pre-line" }}>
+          {error}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         {isRegister && (

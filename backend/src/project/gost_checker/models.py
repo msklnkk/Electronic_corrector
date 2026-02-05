@@ -61,11 +61,13 @@ class DocumentCheckReport:
     warning_issues: int
     results: List[CheckResult]
     timestamp: str
+    filename: Optional[str] = None
     
     def to_dict(self) -> Dict:
         result = asdict(self)
         # Конвертируем все результаты
         result['results'] = [r.to_dict() for r in self.results]
+        result['filename'] = self.filename
         return result
     
     def get_failed_results(self) -> List[CheckResult]:

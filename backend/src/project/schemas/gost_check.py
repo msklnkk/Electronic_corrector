@@ -26,6 +26,7 @@ class GostCheckResult(BaseModel):
     warnings: List[str]
     details: Dict[str, Any]
     checked_at: datetime
+    filename: Optional[str]
 
 class GostCheckStatus(BaseModel):
     document_id: int

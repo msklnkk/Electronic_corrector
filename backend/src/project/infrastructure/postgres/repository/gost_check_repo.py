@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional, Dict, Any, Type
@@ -17,7 +19,7 @@ class AsyncGostCheckRepository:
             document_id=document_id,
             standart_id=gost_standard.standart_id,
             checked_at=datetime.now(),
-            result="analyzing"
+            result=json.dumps({"status": "analyzing"}, ensure_ascii=False)
         )
 
         self.db.add(check)
@@ -48,20 +50,15 @@ class AsyncGostCheckRepository:
         if not check:
             raise ValueError(f"Check {check_id} не найден")
 
-        check.result = "perfect" if result.get('is_compliant') else 'needs_revision'
+        # Сохраняем полный JSON
+        check.result = json.dumps(result) if result else json.dumps({})  # теперь result — dict с 'report' и т.д.
         check.checked_at = datetime.now()
 
-        # Обновляем документ
+        # Обновляем документ score
         doc_res = await self.db.execute(select(Documents).where(Documents.document_id == check.document_id))
         document = doc_res.scalars().first()
         if document:
             document.score = float(result.get('score', 0))
-            # Обновляем статус документа
-            new_status_name = "Идеален" if result.get('is_compliant') else "Отправлен на доработку"
-            status_res = await self.db.execute(select(Status).where(Status.status_name == new_status_name))
-            new_status = status_res.scalars().first()
-            if new_status:
-                document.status_id = new_status.status_id
 
         await self.db.commit()
         await self.db.refresh(check)

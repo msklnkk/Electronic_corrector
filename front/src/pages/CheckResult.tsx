@@ -41,6 +41,15 @@ const GradientButton = ({ children, color }: any) => (
   </Box>
 );
 
+type IssueRow = {
+  type: string;
+  category: string;
+  description: string;
+  page: string | number;
+  priority: string;
+};
+
+
 const CheckResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -73,23 +82,76 @@ const CheckResult: React.FC = () => {
 
   if (!result) return null;
 
-  const documentName = result.document_name || "Документ";
-  const rawScore = result.score ?? 0;
+const cleanFilename = (name?: string) => {
+  if (!name) return "Документ";
+
+  // убираем "1770331941_09bb1dea_" в начале
+  const cleaned = name.replace(/^\d+_[a-f0-9]+_/, "");
+
+  return cleaned || "Документ";
+};
+
+const documentName = cleanFilename(result.filename);
+
+const rawScore = result.score ?? 0;
   const score =
     typeof rawScore === "string"
       ? Number(rawScore.replace(/^0+/, "")) || 0
       : Number(rawScore);
 
   const normalizedScore = Math.min(Math.max(score, 0), 10);
+    const percent = Math.round((normalizedScore / 10) * 100);
+
   const statusText = normalizedScore >= 8 ? "Хорошо" : "Требует внимания";
 
-  const criticalCount = result.critical_count ?? result.errors?.length ?? 0;
-  const warningCount = result.warning_count ?? 0;
+  // ---- errors/warnings from backend ----
+  const backendErrors: string[] = Array.isArray(result.errors)
+    ? result.errors
+    : [];
+  const backendWarnings: string[] = Array.isArray(result.warnings)
+    ? result.warnings
+    : [];
 
-  const analysisTime = result.analysis_time || "-";
+  const criticalCount = backendErrors.length;
+  const warningCount = backendWarnings.length;
+
+  // ---- map strings -> table rows ----
+  const mappedErrors: IssueRow[] = backendErrors.map((text) => ({
+    type: "Ошибка",
+    category: "ГОСТ",
+    description: text,
+    page: "-",
+    priority: "Критично",
+  }));
+
+  const mappedWarnings: IssueRow[] = backendWarnings.map((text) => ({
+    type: "Замечание",
+    category: "ГОСТ",
+    description: text,
+    page: "-",
+    priority: "Средний",
+  }));
+
+  const issues: IssueRow[] = [...mappedErrors, ...mappedWarnings];
+
+
+  const analysisTime =
+    result.analysis_time ||
+    (typeof result.analysis_time_ms === "number"
+      ? `${(result.analysis_time_ms / 1000).toFixed(1)} сек`
+      : "-");
+
   const pagesChecked = result.pages_checked || "-";
   const accuracy = result.accuracy || "-";
-  const recommendation = result.recommendation || "-";
+
+  const recommendation =
+    result.recommendation ||
+    (normalizedScore >= 8
+      ? "Документ оформлен хорошо. Можно сдавать."
+      : normalizedScore >= 5
+      ? "Есть важные замечания. Лучше исправить перед сдачей."
+      : "Документ сильно не соответствует ГОСТ. Требуется доработка.");
+
 
   const errors = result.errors || [];
 
@@ -155,10 +217,10 @@ const CheckResult: React.FC = () => {
 
               <Box>
                 <Typography variant="h5" fontWeight={600}>
-                  Соответствие ГОСТ: {normalizedScore}/10
+                  Соответствие ГОСТ: {normalizedScore.toFixed(1)}/10 ({percent}%)
                 </Typography>
                 <Typography color="gray" mt={1}>
-                  Документ соответствует большинству требований стандарта
+                  {result.status || "Результат проверки"}
                 </Typography>
 
                 <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
@@ -177,7 +239,7 @@ const CheckResult: React.FC = () => {
           {/* Errors */}
           <Card>
             <Typography variant="h6" mb={2}>
-              Найденные ошибки
+              Найденные ошибки и замечания
             </Typography>
 
             <Box sx={tableHeader}>
@@ -188,15 +250,27 @@ const CheckResult: React.FC = () => {
               <span>Приоритет</span>
             </Box>
 
-            {errors.map((e: any, i: number) => (
-              <Box key={i} sx={tableRow}>
-                <span>{e.type}</span>
-                <span>{e.category}</span>
-                <span>{e.description}</span>
-                <span>{e.page}</span>
-                <span style={{ color: "#ff7675" }}>{e.priority}</span>
-              </Box>
-            ))}
+            {issues.length === 0 ? (
+              <Box sx={{ opacity: 0.7, py: 2 }}>Ошибок не найдено 🎉</Box>
+            ) : (
+              issues.map((e, i) => (
+                <Box key={i} sx={tableRow}>
+                  <span>{e.type}</span>
+                  <span>{e.category}</span>
+                  <span>{e.description}</span>
+                  <span>{e.page}</span>
+                  <span
+                    style={{
+                      color:
+                        e.priority === "Критично" ? "#ff7675" : "#f1c40f",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {e.priority}
+                  </span>
+                </Box>
+              ))
+            )}
           </Card>
 
           <Box sx={{ display: "flex", gap: 3 }}>

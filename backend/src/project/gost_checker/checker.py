@@ -15,10 +15,9 @@ class GOSTDocumentChecker:
             print(f"❌ Ошибка инициализации проверщика: {e}")
             raise
     
-    async def check_document(self, file_path: str, document_id: str = None) -> DocumentCheckReport:
+    async def check_document(self, file_path: str, document_id: str = None, original_filename: str = None) -> DocumentCheckReport:
         """Основной метод проверки документа"""
-        print(f"🔍 Начинаю проверку документа {document_id or 'без ID'}...")
-
+        print(f"🔍 Начинаю проверку документа {document_id or 'без ID'} ({original_filename or 'без имени'})...")
         document_data = await extract_document_data(file_path)
 
         all_results = []
@@ -75,6 +74,7 @@ class GOSTDocumentChecker:
         # Создаем отчет
         report = DocumentCheckReport(
             document_id=document_id or f"doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            filename=original_filename,
             total_checks=total,
             passed_checks=passed,
             failed_checks=failed,
