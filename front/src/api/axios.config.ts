@@ -2,8 +2,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8020', // ← твой бэкенд
-  withCredentials: true,           // если используешь куки (можно оставить)
+  baseURL: 'http://localhost:8020', 
+  withCredentials: true,         
 });
 
 // ────────────────────────────────
@@ -22,9 +22,9 @@ api.interceptors.request.use(
       config.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
-    // Для загрузки файлов — НЕ трогаем Content-Type (браузер сам поставит boundary)
+    // Для загрузки файлов
     if (config.data instanceof FormData) {
-      delete config.headers['Content-Type']; // важно!
+      delete config.headers['Content-Type']; 
     }
 
     // Красивый лог в консоль
@@ -55,14 +55,14 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url;
 
-    // 422 — подробно показываем, что именно не понравилось бэкенду
+    // 422 — ошибки с бэкенда
     if (status === 422) {
       console.error('%c422 Unprocessable Entity', 'color: red; font-size: 18px; font-weight: bold;');
       console.error('URL:', url);
       console.error('Ошибки валидации от FastAPI:');
       console.table(error.response.data.detail);
     } 
-    // 401 — токен протух или его нет
+    // 401 — ошибки токена
     else if (status === 401) {
       console.warn('401 — Токен недействителен, редиректим на логин');
       localStorage.removeItem('access_token');

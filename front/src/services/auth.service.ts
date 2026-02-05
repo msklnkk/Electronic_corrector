@@ -51,7 +51,7 @@ export const AuthService = {
 
   logout() {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('user_profile'); // чистим кэш профиля
+    localStorage.removeItem('user_profile'); // чистится кэш профиля
   },
 
   getToken(): string | null {

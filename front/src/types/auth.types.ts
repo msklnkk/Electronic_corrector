@@ -5,8 +5,7 @@ export interface IRegisterRequest {
   patronomic_name: string | null;        
   login: string;                  
   password: string;
-  tg_username: string;            
-  // username?: string;       
+  tg_username: string;               
 }
 
 export interface IToken {

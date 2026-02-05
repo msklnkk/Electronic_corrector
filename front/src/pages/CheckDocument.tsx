@@ -77,7 +77,6 @@ const CheckDocumentPage: React.FC = () => {
 
     console.log("Документ загружен, ID:", document_id);
 
-    // ПРАВИЛЬНЫЙ ПУТЬ!
     const checkRes = await api.post("/gost-check/start", {
       document_id: document_id
     });
@@ -98,7 +97,6 @@ const CheckDocumentPage: React.FC = () => {
     <>
       <Container maxWidth="lg" sx={{ py: 6 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
-          {/* Левая часть — полностью твоё оформление */}
           <Stack flex={2} spacing={3}>
             <Paper 
               variant="outlined" 
@@ -168,7 +166,6 @@ const CheckDocumentPage: React.FC = () => {
 
             </Paper>
 
-            {/* ТИП ПРОВЕРКИ — РАБОЧИЙ */}
             <Paper variant="outlined" sx={{ p: 4 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Тип проверки</Typography>
               <RadioGroup value={selectedType} onChange={handleTypeChange}>
@@ -204,7 +201,6 @@ const CheckDocumentPage: React.FC = () => {
             </Box>
           </Stack>
 
-          {/* Правая часть — полностью твоя */}
           <Stack flex={1} spacing={3}>
             <Paper sx={{ p: 3, borderRadius: "12px" }}>
               <Typography variant="h6" gutterBottom>Пример отчёта</Typography>

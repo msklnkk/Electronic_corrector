@@ -24,7 +24,8 @@ import {
   Person,
   Logout,
 } from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router-dom"; // ← только один импорт!
+import { useNavigate, useLocation } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import { LoginForm } from "./LoginForm";
 import { AuthService } from "../services/auth.service";
 
@@ -34,6 +35,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,7 +45,6 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
   const isAuthenticated = !!AuthService.getToken();
   const user = AuthService.getCurrentUser();
 
-  // ← ЗАКРЫВАЕМ МОДАЛКУ, если перешли на страницу /login
   useEffect(() => {
     if (location.pathname === "/login") {
       setOpen(false);
@@ -81,11 +82,11 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
       <AppBar
         position="static"
         elevation={0}
-        color="transparent"
+        color="inherit"
         sx={{
+          backgroundColor: "background.paper",
           borderBottom: 1,
-          borderColor:
-            mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+          borderColor: "divider",
           backdropFilter: "blur(12px)",
         }}
       >
@@ -140,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
                         sx={{
                           width: 14,
                           height: 14,
-                          bgcolor: "#4caf50",
+                          bgcolor: "success.main",
                           borderRadius: "50%",
                           border: "3px solid",
                           borderColor: "background.paper",
@@ -150,7 +151,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
                   >
                     <Avatar
                       sx={{
-                        bgcolor: "#9c27b0",
+                        bgcolor: "primary.main",
                         fontWeight: "bold",
                         width: 40,
                         height: 40,
@@ -198,13 +199,12 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
               href="https://t.me/electronic_corrector"
               target="_blank"
             >
-              <Telegram sx={{ color: "#229ED9" }} />
+              <Telegram />
             </IconButton>
           </Stack>
         </Toolbar>
       </AppBar>
 
-      {/* Модальное окно входа */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle textAlign="center">Вход / Регистрация</DialogTitle>
         <DialogContent>

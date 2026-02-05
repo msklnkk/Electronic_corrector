@@ -223,7 +223,7 @@ const Profile = () => {
                 </Box>
               )}
 
-              {/* БЛОК TELEGRAM — только отображение, без кнопок и проверок */}
+              {/* БЛОК TELEGRAM */}
               <Box>
                 <Typography variant="body2" color="text.secondary">Telegram</Typography>
 
@@ -281,7 +281,7 @@ const Profile = () => {
                       Не привязан
                     </Typography>
 
-                    {/* Виджет авторизации отключён — но код остался */}
+                    {/* Виджет авторизации закомментирован */}
                     {/* <Box sx={{ textAlign: "center", minHeight: 80 }}>
                       <div ref={telegramWidgetRef} />
                     </Box> */}
@@ -308,7 +308,6 @@ const Profile = () => {
           </Paper>
         </Box>
 
-        {/* ПРАВАЯ КОЛОНКА — БЕЗ ИЗМЕНЕНИЙ */}
         <Box flex={2} width="100%">
           <Stack spacing={4}>
             <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>

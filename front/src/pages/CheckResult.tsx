@@ -1,176 +1,282 @@
 // src/pages/CheckResult.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios.config";
-import {
-  Container,
-  Paper,
-  Typography,
-  LinearProgress,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  CircularProgress,
-  Button,
-  Box,
-  Chip,
-} from "@mui/material";
-import { CheckCircle, Error, Warning, Refresh } from "@mui/icons-material";
+import { Box, Typography, CircularProgress } from "@mui/material";
+
+const Card = ({ children }: any) => (
+  <Box
+    sx={{
+      background: "rgba(25,28,40,0.9)",
+      borderRadius: "18px",
+      p: 4,
+      backdropFilter: "blur(12px)",
+      border: "1px solid rgba(255,255,255,0.05)",
+      boxShadow: "0 0 40px rgba(0,0,0,0.6)",
+    }}
+  >
+    {children}
+  </Box>
+);
+
+const GradientButton = ({ children, color }: any) => (
+  <Box
+    sx={{
+      px: 5,
+      py: 1.6,
+      borderRadius: "12px",
+      fontWeight: 600,
+      cursor: "pointer",
+      textAlign: "center",
+      background:
+        color === "purple"
+          ? "linear-gradient(90deg,#7B5CFF,#9C27B0)"
+          : "linear-gradient(90deg,#00E5FF,#00BCD4)",
+      color: "#fff",
+      transition: "0.3s",
+      "&:hover": { transform: "translateY(-2px)", opacity: 0.9 },
+    }}
+  >
+    {children}
+  </Box>
+);
 
 const CheckResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<any>(null);
+
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
+  const fetchResult = useCallback(async () => {
     try {
-      // Сначала пробуем получить РЕЗУЛЬТАТ по check_id
-      const resultRes = await api.get(`/gost-check/result/${id}`);
-      setResult(resultRes.data);
-      setStatus({ status: resultRes.data.status || "Проверен" });
+      const res = await api.get(`/gost-check/result/${id}`);
+      setResult(res.data);
       setLoading(false);
-    } catch (err: any) {
-      // Если результат ещё не готов (404 или 425) — получаем статус
-      if (err.response?.status === 404 || err.response?.status === 425) {
-        try {
-          // Важно: /status принимает document_id, а не check_id!
-          // Но мы не знаем document_id! → Поэтому временно делаем по check_id и надеемся,
-          // что бэкенд поддерживает оба варианта.
-          // Лучше: передавать document_id и check_id вместе при старте!
-          const statusRes = await api.get(`/gost-check/status/${id}`);
-          setStatus(statusRes.data);
-        } catch (statusErr) {
-          console.error("Не удалось получить статус:", statusErr);
-        }
-      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
     if (!id) return;
+    fetchResult();
+  }, [id, fetchResult]);
 
-    fetchData();
-    const interval = setInterval(fetchData, 3000); // опрос каждые 3 сек
-
-    return () => clearInterval(interval);
-  }, [id, fetchData]);
-
-  // Экран загрузки
-  if (loading || !status) {
+  if (loading)
     return (
-      <Container sx={{ textAlign: "center", py: 10 }}>
-        <CircularProgress size={80} thickness={5} />
-        <Typography variant="h5" sx={{ mt: 4 }}>
-          {status?.status || "Идёт анализ документа..."}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 2 }}>
-          Проверка по ГОСТ может занять до 30 секунд
-        </Typography>
-      </Container>
+      <Box sx={{ textAlign: "center", py: 10, color: "#fff" }}>
+        <CircularProgress />
+      </Box>
     );
-  }
 
-  const score = result?.score ?? 0;
+  if (!result) return null;
 
-  const getScoreColor = () => {
-    if (score >= 90) return "success";
-    if (score >= 70) return "warning";
-    return "error";
-  };
+  const documentName = result.document_name || "Документ";
+  const rawScore = result.score ?? 0;
+  const score =
+    typeof rawScore === "string"
+      ? Number(rawScore.replace(/^0+/, "")) || 0
+      : Number(rawScore);
 
-  const getStatusColor = () => {
-    if (status.status === "Идеален") return "success";
-    if (status.status === "Отправлен на доработку") return "error";
-    return "warning";
-  };
+  const normalizedScore = Math.min(Math.max(score, 0), 10);
+  const statusText = normalizedScore >= 8 ? "Хорошо" : "Требует внимания";
+
+  const criticalCount = result.critical_count ?? result.errors?.length ?? 0;
+  const warningCount = result.warning_count ?? 0;
+
+  const analysisTime = result.analysis_time || "-";
+  const pagesChecked = result.pages_checked || "-";
+  const accuracy = result.accuracy || "-";
+  const recommendation = result.recommendation || "-";
+
+  const errors = result.errors || [];
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
-      <Paper sx={{ p: 5, borderRadius: 3, boxShadow: 3 }}>
-        <Typography variant="h3" textAlign="center" fontWeight="bold" gutterBottom>
-          Результат проверки ГОСТ
-        </Typography>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top left,#1B1F2F,#0E1018 60%)",
+        color: "#fff",
+        px: 8,
+        py: 6,
+      }}
+    >
+      {/* Назад */}
+      <Typography
+        sx={{ cursor: "pointer", opacity: 0.6, mb: 2 }}
+        onClick={() => navigate(-1)}
+      >
+        ← Вернуться назад
+      </Typography>
 
-        <Box textAlign="center" my={4}>
-          <Typography variant="h1" fontWeight="bold" color={getScoreColor() + ".main"}>
-            {score.toFixed(0)}%
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={score}
-            sx={{
-              height: 20,
-              borderRadius: 10,
-              mt: 2,
-              backgroundColor: "#e0e0e0",
-              "& .MuiLinearProgress-bar": {
-                backgroundColor: getScoreColor() + ".main",
-              },
-            }}
-          />
-        </Box>
+      <Typography variant="h4" fontWeight={700} mb={4}>
+        Результаты проверки • {documentName}
+      </Typography>
 
-        <Box textAlign="center" mb={4}>
-          <Chip
-            label={status.status}
-            color={getStatusColor()}
-            variant="outlined"
-            sx={{
-              fontSize: "1.3rem",
-              fontWeight: "bold",
-              py: 3.5,
-              px: 4,
-              borderWidth: 3,
-            }}
-          />
-        </Box>
-
-        {result && (
-          <>
-            <Typography variant="h6" gutterBottom>
-              Замечания ({result.errors?.length || 0} критических, {result.warnings?.length || 0} предупреждений):
+      <Box sx={{ display: "flex", gap: 4 }}>
+        {/* LEFT */}
+        <Box sx={{ flex: 3, display: "flex", flexDirection: "column", gap: 4 }}>
+          {/* Score */}
+          <Card>
+            <Typography variant="h6" mb={3}>
+              Общая оценка
             </Typography>
-            <List>
-              {result.errors?.map((e: any, i: number) => (
-                <ListItem key={i}>
-                  <ListItemIcon><Error color="error" /></ListItemIcon>
-                  <ListItemText primary={e.message} secondary="Критическая ошибка" />
-                </ListItem>
-              ))}
-              {result.warnings?.map((w: any, i: number) => (
-                <ListItem key={i}>
-                  <ListItemIcon><Warning color="warning" /></ListItemIcon>
-                  <ListItemText primary={w.message} secondary="Предупреждение" />
-                </ListItem>
-              ))}
-              {(!result.errors || result.errors.length === 0) &&
-                (!result.warnings || result.warnings.length === 0) && (
-                  <ListItem>
-                    <ListItemIcon><CheckCircle color="success" /></ListItemIcon>
-                    <ListItemText primary="Документ полностью соответствует ГОСТ!" />
-                  </ListItem>
-                )}
-            </List>
-          </>
-        )}
 
-        <Box textAlign="center" mt={6}>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<Refresh />}
-            onClick={() => navigate("/")}
-            sx={{ borderRadius: 3, py: 1.5, px: 5 }}
-          >
-            Проверить ещё документ
-          </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Box sx={{ position: "relative" }}>
+                <CircularProgress
+                  variant="determinate"
+                  value={(normalizedScore / 10) * 100}
+                  size={160}
+                  thickness={6}
+                  sx={{
+                    color: "#8A5CFF",
+                    "& .MuiCircularProgress-circle": {
+                      strokeLinecap: "round",
+                    },
+                  }}
+                />
+                <Typography
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%,-50%)",
+                    fontSize: 42,
+                    fontWeight: 700,
+                  }}
+                >
+                  {normalizedScore.toFixed(1)}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="h5" fontWeight={600}>
+                  Соответствие ГОСТ: {normalizedScore}/10
+                </Typography>
+                <Typography color="gray" mt={1}>
+                  Документ соответствует большинству требований стандарта
+                </Typography>
+
+                <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+                  <Box sx={badgeStyle("#2ecc71")}>{statusText}</Box>
+                  <Box sx={badgeStyle("#e74c3c")}>
+                    {criticalCount} критичных
+                  </Box>
+                  <Box sx={badgeStyle("#f1c40f")}>
+                    {warningCount} замечаний
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          </Card>
+
+          {/* Errors */}
+          <Card>
+            <Typography variant="h6" mb={2}>
+              Найденные ошибки
+            </Typography>
+
+            <Box sx={tableHeader}>
+              <span>Тип</span>
+              <span>Категория</span>
+              <span>Описание</span>
+              <span>Страница</span>
+              <span>Приоритет</span>
+            </Box>
+
+            {errors.map((e: any, i: number) => (
+              <Box key={i} sx={tableRow}>
+                <span>{e.type}</span>
+                <span>{e.category}</span>
+                <span>{e.description}</span>
+                <span>{e.page}</span>
+                <span style={{ color: "#ff7675" }}>{e.priority}</span>
+              </Box>
+            ))}
+          </Card>
+
+          <Box sx={{ display: "flex", gap: 3 }}>
+            <GradientButton color="purple">
+              Скачать отчет в PDF
+            </GradientButton>
+            <GradientButton color="cyan">
+              Исправить документ
+            </GradientButton>
+          </Box>
         </Box>
-      </Paper>
-    </Container>
+
+        {/* RIGHT */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+          <Card>
+            <Typography variant="h6" mb={2}>
+              ИИ анализ завершен
+            </Typography>
+
+            <InfoRow label="Время анализа" value={analysisTime} />
+            <InfoRow label="Страниц проверено" value={pagesChecked} />
+            <InfoRow label="Точность анализа" value={`${accuracy}%`} green />
+          </Card>
+
+          <Box
+            sx={{
+              p: 4,
+              borderRadius: "18px",
+              background:
+                "linear-gradient(135deg,#6C3BFF,#9C27B0)",
+            }}
+          >
+            <Typography variant="h6">Рекомендация</Typography>
+            <Typography mt={2}>{recommendation}</Typography>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
+
+const badgeStyle = (color: string) => ({
+  background: `${color}22`,
+  color,
+  px: 2,
+  py: 0.6,
+  borderRadius: "8px",
+  fontSize: 14,
+  fontWeight: 600,
+});
+
+const tableHeader = {
+  display: "grid",
+  gridTemplateColumns: "80px 160px 1fr 100px 120px",
+  opacity: 0.6,
+  padding: "12px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
+};
+
+const tableRow = {
+  display: "grid",
+  gridTemplateColumns: "80px 160px 1fr 100px 120px",
+  padding: "14px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.05)",
+};
+
+const InfoRow = ({ label, value, green }: any) => (
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "space-between",
+      py: 1.5,
+      borderBottom: "1px solid rgba(255,255,255,0.05)",
+    }}
+  >
+    <Typography color="gray">{label}</Typography>
+    <Typography color={green ? "#2ecc71" : "#fff"} fontWeight={600}>
+      {value}
+    </Typography>
+  </Box>
+);
 
 export default CheckResult;

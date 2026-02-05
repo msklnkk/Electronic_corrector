@@ -9,7 +9,7 @@ interface Props {
 
 export const ProtectedRoute: React.FC<Props> = ({ children }) => {
   const { user, loading } = useAuth();
-  const location = useLocation(); // ← получаем текущий путь
+  const location = useLocation(); 
 
   if (loading) {
     return (
@@ -29,7 +29,7 @@ export const ProtectedRoute: React.FC<Props> = ({ children }) => {
     <Navigate
       to="/login"
       replace
-      state={{ from: location.pathname }} // ← вот сюда сохраняем путь!
+      state={{ from: location.pathname }} 
     />
   );
 };

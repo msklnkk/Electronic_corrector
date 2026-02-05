@@ -48,13 +48,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           login: email,                          
           password: password,
           tg_username: tgUsername || " ",                
-          // username не отправляем вообще — бэкенд его не ждёт
         });
       } else {
         await authLogin(email, password);
       }
 
-      // Загружаем актуальный профиль
+      // Загрузка актуального профиль
       const { data } = await axios.get("/me");
       AuthService.setUserProfile(data);
 
@@ -105,7 +104,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               value={tgUsername}
               onChange={(e) => setTgUsername(e.target.value.replace(/[@\s]/g, ''))}
               margin="normal"
-              // required
               placeholder="ivan_ivanov"
               helperText="Без @ и пробелов"
               InputProps={{

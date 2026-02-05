@@ -23,7 +23,7 @@ const Login = () => {
 
         <LoginForm
           onSuccess={() => {
-            navigate(from); // ← сюда попадёт пользователь после входа!
+            navigate(from);
           }}
         />
       </Paper>
