@@ -1,4 +1,4 @@
-// src/components/LoginForm.tsx
+// src/components/auth/LoginForm.tsx
 import React, { useState } from 'react';
 import {
   TextField,
@@ -11,10 +11,12 @@ import {
   IconButton,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axios.config';
-import { AuthService } from '../services/auth.service';
+
+import { useAuth } from 'hooks';                  
+import { api } from 'api';                                 
+import { AuthService } from 'services';               
+import { API_ROUTES } from 'config/constants';   
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -32,7 +34,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const { login: authLogin, register } = useAuth();
+  const { login: authLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,52 +46,48 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         await AuthService.register({
           first_name: firstName,
           surname_name: surname,
-          patronomic_name: patronomic || " ",     
-          login: email,                          
+          patronomic_name: patronomic || ' ',
+          login: email,
           password: password,
-          tg_username: tgUsername || " ",                
+          tg_username: tgUsername || ' ',
         });
       } else {
         await authLogin(email, password);
       }
 
       // Загрузка актуального профиля
-      const { data } = await axios.get("/me");
+      const { data } = await api.get(API_ROUTES.AUTH.ME);           // ← используем константу
       AuthService.setUserProfile(data);
 
       onSuccess?.();
       navigate('/check');
     } catch (err: any) {
-        const detail = err?.response?.data?.detail;
+      const detail = err?.response?.data?.detail;
 
-      // FastAPI validation error: detail = массив
       if (Array.isArray(detail)) {
         const msg = detail
           .map((e) => {
-            const loc = Array.isArray(e.loc) ? e.loc.join(" → ") : "";
+            const loc = Array.isArray(e.loc) ? e.loc.join(' → ') : '';
             return loc ? `${loc}: ${e.msg}` : e.msg;
           })
-          .join("\n");
+          .join('\n');
 
-        setError(msg || "Ошибка авторизации");
+        setError(msg || 'Ошибка авторизации');
         return;
       }
 
-      // detail = строка
-      if (typeof detail === "string") {
+      if (typeof detail === 'string') {
         setError(detail);
         return;
       }
 
-      // detail = объект
-      if (detail && typeof detail === "object") {
-        setError(detail.msg || "Ошибка авторизации");
+      if (detail && typeof detail === 'object') {
+        setError(detail.msg || 'Ошибка авторизации');
         return;
       }
 
-      setError("Ошибка авторизации");
+      setError('Ошибка авторизации');
     }
-
   };
 
   return (
@@ -99,7 +97,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2, whiteSpace: "pre-line" }}>
+        <Alert severity="error" sx={{ mb: 2, whiteSpace: 'pre-line' }}>
           {error}
         </Alert>
       )}

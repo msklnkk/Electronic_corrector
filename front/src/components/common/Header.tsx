@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+// src/components/common/Header.tsx
 import React, { useState, useEffect } from "react";
 import {
   AppBar,
@@ -26,8 +26,10 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
-import { LoginForm } from "./LoginForm";
-import { AuthService } from "../services/auth.service";
+
+import { LoginForm } from "components/auth";
+import { AuthService } from "services";
+import { ROUTES } from "config/constants";
 
 interface HeaderProps {
   mode: "light" | "dark";
@@ -35,7 +37,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
-  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
   const user = AuthService.getCurrentUser();
 
   useEffect(() => {
-    if (location.pathname === "/login") {
+    if (location.pathname === ROUTES.LOGIN) {
       setOpen(false);
     }
   }, [location.pathname]);
@@ -62,17 +63,21 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
   const handleLogout = () => {
     AuthService.logout();
     handleMenuClose();
-    navigate("/");
+    navigate(ROUTES.HOME);
     window.location.reload();
   };
 
   const getInitials = () => {
     if (!user) return "?";
-    const first = user.first_name?.[0];
-    const last = user.surname_name?.[0];
+
+    const first = user.first_name?.[0] ?? "";
+    const last = user.surname_name?.[0] ?? "";
+    const emailFirst = user.email?.[0] ?? "?";
+
     if (first && last) return `${first}${last}`.toUpperCase();
-    if (first || last) return (first || last).toUpperCase();
-    return user.email?.[0].toUpperCase() || "?";
+    if (first) return first.toUpperCase();
+    if (last) return last.toUpperCase();
+    return emailFirst.toUpperCase();
   };
 
   const avatarLetter = getInitials();
@@ -95,7 +100,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
             component="img"
             src="/logo.png"
             alt="Логотип"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(ROUTES.HOME)}
             sx={{ height: 50, cursor: "pointer", mr: 2 }}
           />
 
@@ -111,15 +116,15 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
           >
             <Button
               color="inherit"
-              onClick={() => navigate("/")}
-              sx={{ fontWeight: isActive("/") ? 600 : 400 }}
+              onClick={() => navigate(ROUTES.HOME)}
+              sx={{ fontWeight: isActive(ROUTES.HOME) ? 600 : 400 }}
             >
               Главная
             </Button>
             <Button
               color="inherit"
-              onClick={() => navigate("/check")}
-              sx={{ fontWeight: isActive("/check") ? 600 : 400 }}
+              onClick={() => navigate(ROUTES.CHECK)}
+              sx={{ fontWeight: isActive(ROUTES.CHECK) ? 600 : 400 }}
             >
               Проверить документ
             </Button>
@@ -172,7 +177,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
                   <MenuItem
                     onClick={() => {
                       handleMenuClose();
-                      navigate("/profile");
+                      navigate(ROUTES.PROFILE);
                     }}
                   >
                     <ListItemIcon>
@@ -211,7 +216,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
           <LoginForm
             onSuccess={() => {
               setOpen(false);
-              navigate("/check");
+              navigate(ROUTES.CHECK);
             }}
           />
         </DialogContent>

@@ -1,15 +1,16 @@
 // src/pages/Login.tsx
 import React from 'react';
-import { Container, Paper, Typography, Box } from '@mui/material';
-import { LoginForm } from '../components/LoginForm';
+import { Container, Paper, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+import { LoginForm } from 'components/auth';            
+import { ROUTES } from 'config/constants';              
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Если пришёл с редиректа — берём путь, иначе по умолчанию на /check
-  const from = (location.state as { from?: string })?.from || '/check';
+  const from = (location.state as { from?: string })?.from || ROUTES.CHECK;
 
   return (
     <Container maxWidth="sm" sx={{ mt: 8, minHeight: '70vh', display: 'flex', alignItems: 'center' }}>
@@ -23,7 +24,7 @@ const Login = () => {
 
         <LoginForm
           onSuccess={() => {
-            navigate(from);
+            navigate(from, { replace: true });  
           }}
         />
       </Paper>

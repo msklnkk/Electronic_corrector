@@ -1,7 +1,8 @@
-// src/components/ProtectedRoute.tsx
+// src/components/auth/ProtectedRoute.tsx
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+
+import { useAuth } from 'hooks';           // ← алиас
 
 interface Props {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ interface Props {
 
 export const ProtectedRoute: React.FC<Props> = ({ children }) => {
   const { user, loading } = useAuth();
-  const location = useLocation(); 
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,17 +20,15 @@ export const ProtectedRoute: React.FC<Props> = ({ children }) => {
     );
   }
 
-  // Если залогинен — показываем страницу
   if (user?.loggedIn) {
     return <>{children}</>;
   }
 
-  // Если НЕ залогинен — редиректим на логин и запоминаем, откуда пришёл
   return (
     <Navigate
       to="/login"
       replace
-      state={{ from: location.pathname }} 
+      state={{ from: location.pathname }}
     />
   );
 };

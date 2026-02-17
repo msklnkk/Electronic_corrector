@@ -58,7 +58,7 @@ class Documents(Base):
     size: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status_id: Mapped[int] = mapped_column(ForeignKey("statuses.status_id"), nullable=False)
     report_pdf_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, comment="Соответствие стандарту (0-100)")
+    score: Mapped[int] = mapped_column(Integer, nullable=False, comment="Соответствие стандарту (0-100)")
     analysis_time: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
 
     # ИСПРАВЛЕНО: user → Users (с s), и только один mistakes

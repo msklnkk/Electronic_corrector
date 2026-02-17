@@ -1,5 +1,4 @@
 // src/pages/Profile.tsx
-import axios from '../api/axios.config';
 import React, { useState, useEffect, useRef } from "react";
 import {
   Container,
@@ -15,23 +14,12 @@ import {
 import { Edit, Telegram as TelegramIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-interface User {
-  user_id: number;
-  email: string;
-  username: string;
-  first_name?: string;
-  surname_name?: string;
-  patronomic_name?: string;
-  role: string;
-  theme: string;
-  is_push_enabled: boolean;
-  tg_username?: string | null;
-  telegram_id?: number | null;
-  is_tg_subscribed?: boolean;
-}
+import { api } from "api";
+import type { UserProfile } from "types";
+import { ROUTES } from "config/constants";
 
 const Profile = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
@@ -127,19 +115,19 @@ const Profile = () => {
     const fetchUser = async () => {
       const token = localStorage.getItem("access_token");
       if (!token) {
-        navigate("/login");
+        navigate(ROUTES.LOGIN);
         return;
       }
 
       try {
-        const response = await axios.get<User>("/me", {
+        const response = await api.get<UserProfile>("/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem("access_token");
-          navigate("/login");
+          navigate(ROUTES.LOGIN);
         }
       } finally {
         setLoading(false);
@@ -149,20 +137,30 @@ const Profile = () => {
     fetchUser();
   }, [navigate]);
 
-  if (loading) return <Container sx={{ py: 6 }}><Typography>Загрузка профиля...</Typography></Container>;
-  if (!user) return null;
+  if (loading) {
+    return (
+      <Container sx={{ py: 6 }}>
+        <Typography>Загрузка профиля...</Typography>
+      </Container>
+    );
+  }
+
+  if (!user) {
+    return null;  // редирект: navigate(ROUTES.LOGIN);
+  }
 
   const initials = (() => {
     const f = user.first_name?.[0];
     const s = user.surname_name?.[0];
     if (f && s) return `${f}${s}`.toUpperCase();
     if (f || s) return (f || s)!.toUpperCase();
-    return user.email[0].toUpperCase();
+    return user.email?.[0]?.toUpperCase() ?? "?"; 
   })();
 
-  const fullName = [user.surname_name, user.first_name, user.patronomic_name]
-    .filter(Boolean)
-    .join(" ") || user.email;
+  const fullName =
+    [user.surname_name, user.first_name, user.patronomic_name]
+      .filter(Boolean)
+      .join(" ") || user.email;
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -224,6 +222,7 @@ const Profile = () => {
               )}
 
               {/* БЛОК TELEGRAM */}
+
               <Box>
                 <Typography variant="body2" color="text.secondary">Telegram</Typography>
 
@@ -241,7 +240,6 @@ const Profile = () => {
                         <Chip label="Не подписан" color="error" size="small" />
                       )} */}
                     </Stack>
-
                     {/* Весь блок с кнопками и предупреждениями — закомментирован */}
                     {/* {!user.is_tg_subscribed && (
                       <Box sx={{ mt: 2 }}>
@@ -280,7 +278,6 @@ const Profile = () => {
                     <Typography fontWeight={500} color="text.secondary">
                       Не привязан
                     </Typography>
-
                     {/* Виджет авторизации закомментирован */}
                     {/* <Box sx={{ textAlign: "center", minHeight: 80 }}>
                       <div ref={telegramWidgetRef} />

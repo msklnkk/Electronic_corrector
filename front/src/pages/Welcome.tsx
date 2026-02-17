@@ -25,7 +25,10 @@ import {
   Phone,
   Telegram,
 } from "@mui/icons-material";
+
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "config/constants"; 
+import { Footer } from "components";
 
 const Welcome: React.FC = () => {
   const navigate = useNavigate();
@@ -116,7 +119,7 @@ const Welcome: React.FC = () => {
 
   return (
     <>
-      {/* === ГЕРОЙ-СЕКЦИЯ === */}
+      {/* ГЕРОЙ-СЕКЦИЯ */}
       <Container maxWidth="md" sx={{ textAlign: "center", py: 10 }}>
         <Typography variant="h3" gutterBottom>
           Загрузите файл и получите отчёт об ошибках оформления
@@ -128,7 +131,7 @@ const Welcome: React.FC = () => {
           variant="contained"
           size="large"
           color="primary"
-          onClick={() => navigate("/check")}
+          onClick={() => navigate(ROUTES.CHECK)}  
           sx={{
             px: 4,
             py: 1.5,
@@ -142,7 +145,7 @@ const Welcome: React.FC = () => {
         </Button>
       </Container>
 
-      {/* === ПРЕИМУЩЕСТВА === */}
+      {/* ПРЕИМУЩЕСТВА */}
       <Box sx={{ py: 8 }}>
         <Container maxWidth="lg">
           <Typography variant="h4" align="center" sx={{ mb: 6, fontWeight: 700 }}>
@@ -178,7 +181,7 @@ const Welcome: React.FC = () => {
         </Container>
       </Box>
 
-      {/* === КАК ЭТО РАБОТАЕТ === */}
+      {/* КАК ЭТО РАБОТАЕТ */}
       <Box sx={{ py: 10, bgcolor: "background.default" }}>
         <Container maxWidth="lg">
           <Typography variant="h4" align="center" sx={{ mb: 2, fontWeight: 700 }}>
@@ -227,7 +230,7 @@ const Welcome: React.FC = () => {
         </Container>
       </Box>
 
-      {/* === ДЛЯ КОГО === */}
+      {/* ДЛЯ КОГО */}
       <Box sx={{ py: 10 }}>
         <Container maxWidth="lg">
           <Typography variant="h4" align="center" sx={{ mb: 2, fontWeight: 700 }}>
@@ -270,7 +273,7 @@ const Welcome: React.FC = () => {
         </Container>
       </Box>
 
-      {/* === ОТЗЫВЫ === */}
+      {/* ОТЗЫВЫ */}
       <Box sx={{ py: 10, bgcolor: "background.default" }}>
         <Container maxWidth="lg">
           <Typography variant="h4" align="center" sx={{ mb: 2, fontWeight: 700 }}>
@@ -312,7 +315,7 @@ const Welcome: React.FC = () => {
         </Container>
       </Box>
 
-      {/* === CTA БЛОК === */}
+      {/* CTA БЛОК */}
       <Box
         sx={{
           py: 10,
@@ -341,94 +344,10 @@ const Welcome: React.FC = () => {
               "&:hover": { bgcolor: "#f8fafc" },
             }}
             startIcon={<UploadFile />}
-            onClick={() => navigate("/check")}
+            onClick={() => navigate(ROUTES.CHECK)}  
           >
             Загрузить документ
           </Button>
-        </Container>
-      </Box>
-
-      {/* === ФУТЕР — ТОЛЬКО КОНТАКТЫ === */}
-      <Box
-        component="footer"
-        sx={{
-          py: 6,
-          bgcolor: "background.paper",
-          borderTop: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Container maxWidth="lg">
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={4}
-            justifyContent="space-between"
-            alignItems="flex-start"
-          >
-            <Box sx={{ maxWidth: 300 }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                <Box
-                  component="img"
-                  src="/logo.png"
-                  alt="Логотип"
-                  sx={{ height: 40, width: "auto" }}
-                />
-                <Typography variant="h6" fontWeight={700}>
-                  Электронный корректор
-                </Typography>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                Автоматизированная проверка документов на соответствие ГОСТ и корпоративным стандартам
-              </Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
-                Контакты
-              </Typography>
-              <Stack spacing={1}>
-                <Link
-                  href="mailto:support@corrector.ru"
-                  color="text.secondary"
-                  underline="hover"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <Email fontSize="small" /> support@corrector.ru
-                </Link>
-                <Link
-                  href="tel:+74951234567"
-                  color="text.secondary"
-                  underline="hover"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <Phone fontSize="small" /> +7 (495) 123-45-67
-                </Link>
-                <Link
-                  href="https://t.me/elecrtonic_corrector"
-                  target="_blank"
-                  rel="noopener"
-                  color="primary"
-                  underline="hover"
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    fontWeight: 500,
-                    mt: 1,
-                  }}
-                >
-                  <Telegram fontSize="small" />
-                  Подписаться в Telegram
-                </Link>
-              </Stack>
-            </Box>
-          </Stack>
-
-          <Divider sx={{ my: 4 }} />
-
-          <Typography variant="body2" color="text.secondary" align="center">
-            © 2025 Электронный корректор. Все права защищены.
-          </Typography>
         </Container>
       </Box>
     </>

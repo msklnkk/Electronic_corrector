@@ -1,55 +1,84 @@
 // src/App.tsx
 import React, { useState, useMemo } from "react";
-import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
+import { ThemeProvider, CssBaseline } from "@mui/material";
 import { Routes, Route } from "react-router-dom";
-import Header from "./components/Header";
+import { SnackbarProvider } from "notistack";
+
+import { createAppTheme } from "./assets/styles/theme";
+import { Header, Footer } from "./components/common";
+import { ProtectedRoute } from "./components/auth";
+
 import Welcome from "./pages/Welcome";
-import CheckDocumentPage from "./pages/CheckDocument";
+import Login from "./pages/Login";
+import CheckDocument from "./pages/CheckDocument";
 import CheckResult from "./pages/CheckResult";
 import Profile from "./pages/Profile";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import Login from "./pages/Login";
+
+import { ROUTES } from "./config/constants";
 
 function App() {
   const [mode, setMode] = useState<"light" | "dark">("dark");
+  const theme = useMemo(() => createAppTheme(mode), [mode]);
 
-  const theme = useMemo(() => createTheme({
-    palette: {
-      mode,
-      primary: { main: "#8b5cf6" },
-      background: {
-        default: mode === "dark" ? "#0f172a" : "#f8fafc",
-        paper: mode === "dark" ? "#1e293b" : "#ffffff",
-      },
-    },
-    typography: { fontFamily: "'Inter', 'Roboto', sans-serif" },
-  }), [mode]);
+  const toggleTheme = () => {
+    setMode((prev) => (prev === "light" ? "dark" : "light"));
+  };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Header mode={mode} onThemeToggle={() => setMode(m => m === "light" ? "dark" : "light")} />
-      <Routes>
-        <Route path="/" element={<Welcome />} />
-        <Route path="/login" element={<Login />} />
+      <SnackbarProvider
+        maxSnack={3}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+        autoHideDuration={4000}
+        style={{
+          marginTop: "80px",
+        }}
+      >
+        <Header mode={mode} onThemeToggle={toggleTheme} />
 
-        <Route
-          path="/check"
-          element={<ProtectedRoute><CheckDocumentPage /></ProtectedRoute>}
-        />
+        <Routes>
+          {/* Публичные роуты */}
+          <Route path={ROUTES.HOME} element={<Welcome />} />
+          <Route path={ROUTES.LOGIN} element={<Login />} />
 
-        <Route 
-          path="/check-result/:id" 
-          element={<ProtectedRoute><CheckResult /></ProtectedRoute>} 
-        />
+          {/* Защищённые роуты */}
+          <Route
+            path={ROUTES.CHECK}
+            element={
+              <ProtectedRoute>
+                <CheckDocument />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/profile"
-          element={<ProtectedRoute><Profile /></ProtectedRoute>}
-        />
+          <Route
+            path="/gost-check/result/:id"
+            element={
+              <ProtectedRoute>
+                <CheckResult />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="*" element={<Welcome />} />
-      </Routes>
+          <Route
+            path={ROUTES.PROFILE}
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
+          <Route path="*" element={<Welcome />} />
+        </Routes>
+
+        <Footer />
+      </SnackbarProvider>
     </ThemeProvider>
   );
 }

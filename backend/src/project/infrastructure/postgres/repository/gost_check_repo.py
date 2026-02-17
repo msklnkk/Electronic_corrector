@@ -51,14 +51,18 @@ class AsyncGostCheckRepository:
             raise ValueError(f"Check {check_id} не найден")
 
         # Сохраняем полный JSON
-        check.result = json.dumps(result) if result else json.dumps({})  # теперь result — dict с 'report' и т.д.
+        check.result = json.dumps(result) if result else json.dumps({})
         check.checked_at = datetime.now()
 
         # Обновляем документ score
         doc_res = await self.db.execute(select(Documents).where(Documents.document_id == check.document_id))
         document = doc_res.scalars().first()
         if document:
-            document.score = float(result.get('score', 0))
+            raw_score = result.get('score', 0)
+            try:
+                document.score = int(round(float(raw_score)))
+            except (ValueError, TypeError):
+                document.score = 0
 
         await self.db.commit()
         await self.db.refresh(check)

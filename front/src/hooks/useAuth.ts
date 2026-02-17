@@ -1,7 +1,8 @@
 // src/hooks/useAuth.ts
 import { useState, useEffect } from 'react';
-import { AuthService } from '../services/auth.service';
-import { IRegisterRequest } from '../types/auth.types';
+
+import { AuthService } from 'services';                   
+import type { IRegisterRequest } from 'types';          
 
 interface AuthState {
   user: { loggedIn: boolean } | null;

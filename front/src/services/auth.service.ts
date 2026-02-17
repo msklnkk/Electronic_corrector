@@ -1,87 +1,73 @@
 // src/services/auth.service.ts
-import axios from '../api/axios.config';
-import { IToken, IRegisterRequest } from '../types/auth.types';
+import { api } from "api";
+import type { IToken, IRegisterRequest } from "types/auth.types";
+import type { UserProfile } from "types/user.types";
+import { API_ROUTES, STORAGE_KEYS } from "config/constants";
+import { decodeToken } from "utils/jwt";
 
-// Интерфейс полного профиля пользователя
-export interface UserProfile {
-  user_id: number;
-  email: string;
-  username: string;
-  first_name?: string;
-  surname_name?: string;
-  patronomic_name?: string;
-  role: string;
-  theme: string;
-  is_push_enabled: boolean;
-  tg_username?: string | null;
-  telegram_id?: number | null;
-  is_tg_subscribed?: boolean;
+// Вспомогательный тип для декодированного JWT (вынести в types/jwt.types.ts)
+interface JwtPayload {
+  sub?: string;
+  email?: string;
+  user_id?: number;
   [key: string]: any;
-}
-
-// Вспомогательная функция для декодирования JWT
-function decodeToken(token: string): any {
-  try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch (e) {
-    console.error('Ошибка декодирования токена:', e);
-    return null;
-  }
 }
 
 export const AuthService = {
   // Регистрация
   async register(userData: IRegisterRequest): Promise<IToken> {
-    const response = await axios.post<IToken>('/register', userData);
+    const response = await api.post<IToken>(API_ROUTES.AUTH.REGISTER, userData);
     const token = response.data.access_token;
-    if (token) localStorage.setItem('access_token', token);
+    if (token) {
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+    }
     return response.data;
   },
 
   // Вход
   async login(data: URLSearchParams): Promise<IToken> {
-    const response = await axios.post<IToken>('/token', data, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    const response = await api.post<IToken>(API_ROUTES.AUTH.LOGIN, data, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
     const token = response.data.access_token;
-    localStorage.setItem('access_token', token);
+    if (token) {
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+    }
     return response.data;
   },
 
   logout() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_profile'); // чистится кэш профиля
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
   },
 
   getToken(): string | null {
-    return localStorage.getItem('access_token');
+    return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
   },
 
-  // Сохраняем полный профиль из /me
   setUserProfile(profile: UserProfile) {
-    localStorage.setItem('user_profile', JSON.stringify(profile));
+    localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
   },
 
-  // Получаем кэшированный профиль
   getUserProfile(): UserProfile | null {
-    const data = localStorage.getItem('user_profile');
+    const data = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
     return data ? JSON.parse(data) : null;
   },
 
-  // Основной метод — сначала из кэша, потом из токена
-  getCurrentUser(): UserProfile | any | null {
+  getCurrentUser(): UserProfile | null {
     const profile = this.getUserProfile();
     if (profile) return profile;
 
     const token = this.getToken();
     if (!token) return null;
-    return decodeToken(token);
+
+    const decoded = decodeToken(token);
+    return decoded ? (decoded as UserProfile) : null;
   },
 
   getCurrentUserEmail(): string | null {
     const user = this.getCurrentUser();
-    return user?.email || user?.sub || null;
+    return user?.email ?? null;
   },
 
   getCurrentUserId(): number | null {

@@ -32,14 +32,15 @@ def create_app() -> FastAPI:
         app_options["debug"] = True
 
     app = FastAPI(root_path=settings.ROOT_PATH, **app_options)
+
+    # ✅ CORS настроен ДО подключения роутеров
     app.add_middleware(
-        CORSMiddleware,  # type: ignore
-        allow_origins=settings.ORIGINS,
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000"],  # Добавь "*" для разработки
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
 
     app.include_router(auth_routes, tags=["Auth"])
     app.include_router(user_routes, tags=["User"])
@@ -51,22 +52,22 @@ def create_app() -> FastAPI:
     app.include_router(status_routes, tags=["Status"])
     app.include_router(mistake_type_routes, tags=["Mistake Type"])
     app.include_router(mistake_routes, tags=["Mistake"])
-    app.include_router(gost_check_router,tags=["Gost"])
-
+    app.include_router(gost_check_router, tags=["Gost"])
 
     return app
 
 
 app = create_app()
 
-# Настройка CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # URL фронтенда
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+# ❌ УДАЛИ ЭТО - второй раз CORS добавляется ПОСЛЕ return!
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:3000"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 
 async def run() -> None:

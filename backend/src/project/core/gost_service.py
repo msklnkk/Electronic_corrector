@@ -14,48 +14,47 @@ from project.infrastructure.postgres.models import Documents, Status
 class GostCheckService:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
-        self.checker = GOSTDocumentChecker(rules_file="/app/src/project/gost_checker/manual_rules.json")
+        self.checker = GOSTDocumentChecker(
+            rules_file="/app/src/project/gost_checker/manual_rules.json"
+        )
         self.repository = AsyncGostCheckRepository(db)
 
     async def start_gost_check(self, document_id: int) -> int:
         """Запустить проверку ГОСТ для документа"""
-        # Создаем запись о проверке
         check = await self.repository.create_gost_check(document_id)
-
-        # Обновляем статус документа на "Анализируется"
         await self._update_document_status(document_id, "Анализируется")
-
-        # Запускаем асинхронную проверку
         asyncio.create_task(self._process_gost_check(document_id, check.check_id))
-
         return check.check_id
 
     async def _process_gost_check(self, document_id: int, check_id: int):
         """Асинхронная обработка проверки ГОСТ"""
-        document = None  # Инициализируем заранее
+        document = None
         try:
-            document_stmt = select(Documents).where(Documents.document_id == document_id)
-            # Получаем документ
-            result = await self.db.execute(document_stmt)
+            result = await self.db.execute(
+                select(Documents).where(Documents.document_id == document_id)
+            )
             document = result.scalars().first()
             if not document:
                 raise ValueError("Документ не найден")
 
-            # Передаём filename для отчёта и логирования
             report = await self.checker.check_document(
                 file_path=document.filepath,
                 document_id=str(document_id),
                 original_filename=document.filename
             )
 
-            # Подготавливаем данные для сохранения (полный отчёт!)
+            # Получаем отчёт и приводим все числовые поля к float/int
             report_dict = report.to_dict()
-            # Добавляем filename явно
             report_dict['filename'] = document.filename
+            report_dict['passed_checks'] = float(report_dict.get('passed_checks', 0))
+            report_dict['total_checks'] = float(report_dict.get('total_checks', 0))
 
-            # Адаптируем результат под старый формат (временно, чтобы не ломать БД)
-            is_compliant = report.passed_checks == report.total_checks
-            score = float(report.passed_checks) / max(1, report.total_checks) * 100 if report.total_checks > 0 else 0.0
+            passed = report_dict['passed_checks']
+            total = report_dict['total_checks'] if report_dict['total_checks'] != 0 else 1.0
+            raw_score = (passed / total) * 100
+            score = int(round(raw_score))
+
+            is_compliant = passed == total
 
             result_data = {
                 'is_compliant': is_compliant,
@@ -63,24 +62,26 @@ class GostCheckService:
                 'report': report_dict
             }
 
-            # Сохраняем полный JSON отчёт
+            # Сохраняем JSON отчёт и обновляем score в документе
             await self.repository.update_check_result(check_id, result_data)
 
-            # Сохраняем ошибки/предупреждения как отдельные записи
-            errors = [r.message for r in report.get_failed_results() if r.severity == RuleSeverity.CRITICAL]
+            # Сохраняем ошибки и предупреждения
+            errors = [
+                r.message for r in report.get_failed_results()
+                if r.severity == RuleSeverity.CRITICAL
+            ]
             warnings = [r.message for r in report.get_warning_issues()]
             await self.repository.create_mistakes(document_id, errors, warnings)
 
-            # Статус
             new_status = "Идеален" if is_compliant else "Отправлен на доработку"
             await self._update_document_status(document_id, new_status)
 
         except Exception as e:
             print(f"Ошибка при проверке ГОСТ документа {document_id}: {str(e)}")
-            # Фикс: дефолтный result_data в случае ошибки
+            # Дефолтный результат при ошибке
             result_data = {
                 'is_compliant': False,
-                'score': 0.0,
+                'score': 0,
                 'report': {
                     'results': [{'message': f'Системная ошибка: {str(e)}', 'severity': 'critical'}],
                     'total_checks': 1,
@@ -89,41 +90,31 @@ class GostCheckService:
                 }
             }
             await self.repository.update_check_result(check_id, result_data)
-            errors = [str(e)]
-            warnings = []
-            await self.repository.create_mistakes(document_id, errors, warnings)
+            await self.repository.create_mistakes(document_id, [str(e)], [])
             await self._update_document_status(document_id, "Ошибка")
 
     async def _update_document_status(self, document_id: int, status_name: str):
-        """Обновить статус документа"""
-        status_stmt = select(Status).where(Status.status_name == status_name)
-        result = await self.db.execute(status_stmt)
+        result = await self.db.execute(select(Status).where(Status.status_name == status_name))
         status_obj = result.scalars().first()
-
         if not status_obj:
             status_obj = Status(status_name=status_name)
             self.db.add(status_obj)
             await self.db.commit()
             await self.db.refresh(status_obj)
 
-        doc_stmt = select(Documents).where(Documents.document_id == document_id)
-        result = await self.db.execute(doc_stmt)
+        result = await self.db.execute(select(Documents).where(Documents.document_id == document_id))
         document = result.scalars().first()
         if document:
             document.status_id = status_obj.status_id
             await self.db.commit()
 
     async def get_check_result(self, check_id: int) -> Dict[str, Any]:
-        """Получить результат проверки"""
         check = await self.repository.get_check_by_id(check_id)
         if not check:
             return {}
 
-        # Получаем score из check или из документа
-        doc_stmt = select(Documents).where(Documents.document_id == check.document_id)
-        result = await self.db.execute(doc_stmt)
+        result = await self.db.execute(select(Documents).where(Documents.document_id == check.document_id))
         document = result.scalars().first()
-
         filename = document.filename if document else "unknown"
 
         result_data = {}
@@ -131,24 +122,28 @@ class GostCheckService:
         errors = []
         warnings = []
 
-        # Парсим полный отчёт из check.result (теперь JSON)
         try:
             if check.result:
                 result_data = json.loads(check.result)
-            else:
-                result_data = {}  # Пустой, если result None
             report = result_data.get('report', {})
-            errors = [r['message'] for r in report.get('results', []) if
-                      not r['is_passed'] and r['severity'] == 'critical']
-            warnings = [r['message'] for r in report.get('results', []) if
-                        not r['is_passed'] and r['severity'] == 'warning']
+            # Приводим все числовые поля к float/int
+            report['passed_checks'] = float(report.get('passed_checks', 0))
+            report['total_checks'] = float(report.get('total_checks', 0))
+            errors = [
+                r.get('message', 'Неизвестная ошибка')
+                for r in report.get('results', [])
+                if r.get('severity') == 'critical'
+            ]
+            warnings = [
+                r.get('message', 'Неизвестное замечание')
+                for r in report.get('results', [])
+                if r.get('severity') == 'warning'
+            ]
         except json.JSONDecodeError as e:
             print(f"Ошибка парсинга результата проверки {check_id}: {str(e)}")
-            # Можно добавить дефолтный отчёт или ошибку
             errors = ["Ошибка чтения отчёта из БД"]
-            warnings = []
 
-        score = result_data.get('score', 0.0)
+        score = result_data.get('score', 0)
         if document and document.score is not None:
             score = float(document.score)
 
