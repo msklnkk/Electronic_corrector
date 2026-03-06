@@ -33,6 +33,8 @@ COPY migration /app/migration
 RUN poetry config virtualenvs.create false && \
     poetry install --only main --no-root --no-interaction --no-ansi
 
+RUN python -c "from transformers import pipeline; pipeline('text2text-generation', model='IlyaGusev/rut5_base_grammar_corrector', device=-1)"
+
 COPY ./src /app/src
 RUN chmod +x /app/src/start.sh
 

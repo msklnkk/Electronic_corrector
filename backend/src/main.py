@@ -17,6 +17,7 @@ from project.api.status_routes import status_routes
 from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
+from project.api.perk_routes import router as perk_router
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,13 @@ def create_app() -> FastAPI:
     app.include_router(status_routes, tags=["Status"])
     app.include_router(mistake_type_routes, tags=["Mistake Type"])
     app.include_router(mistake_routes, tags=["Mistake"])
+<<<<<<< Updated upstream
     app.include_router(gost_check_router,tags=["Gost"])
 
+=======
+    app.include_router(gost_check_router, tags=["Gost"])
+    app.include_router(perk_router, prefix="/ai", tags=["AI"])
+>>>>>>> Stashed changes
 
     return app
 
