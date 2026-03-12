@@ -18,6 +18,7 @@ from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
 from project.api.perk_routes import router as perk_router
+from project.api.bert_rules_routes import router as bert_rules_router
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(mistake_routes, tags=["Mistake"])
     app.include_router(gost_check_router, tags=["Gost"])
     app.include_router(perk_router, prefix="/ai", tags=["AI"])
+    app.include_router(bert_rules_router, prefix="/ai")
 
     return app
 
