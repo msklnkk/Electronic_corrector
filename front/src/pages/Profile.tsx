@@ -1,5 +1,5 @@
 // src/pages/Profile.tsx
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Container,
   Paper,
@@ -10,19 +10,41 @@ import {
   Stack,
   Chip,
   Divider,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText
 } from "@mui/material";
 import { Edit, Telegram as TelegramIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "api";
 import type { UserProfile } from "types";
-import { ROUTES } from "config/constants";
+import { API_ROUTES, ROUTES } from "config/constants";
+import { useAverageCheckTime } from "../hooks/useAverageCheckTime";
 
 const Profile = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { averageTimeFormatted, totalChecks, loading: timeLoading } = useAverageCheckTime(user?.user_id);
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
+
+  type CheckHistoryItem = {
+    check_id: number;
+    document_id: number;
+    checked_at?: string | null;
+    score?: number | null;
+    result?: string | null;
+  };
+
+  type CheckHistoryRow = CheckHistoryItem & {
+    filename: string;
+  };
+
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [checkHistory, setCheckHistory] = useState<CheckHistoryRow[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // ─────────────────────────────────────────────────────────────────────
   // ВСЁ, ЧТО СВЯЗАНО С ПРОВЕРКОЙ ПОДПИСКИ НА ТЕЛЕГРАМ — ЗАКOMМЕНТИРОВАНО
@@ -137,6 +159,63 @@ const Profile = () => {
     fetchUser();
   }, [navigate]);
 
+  // История проверок (последние 5)
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!user?.user_id) return;
+
+      setHistoryLoading(true);
+      setHistoryError(null);
+
+      try {
+        const res = await api.get<CheckHistoryItem[]>(`/all_checks`);
+        const checks = res.data ?? [];
+
+        const sorted = [...checks].sort((a, b) => {
+          const ta = a.checked_at ? new Date(a.checked_at).getTime() : 0;
+          const tb = b.checked_at ? new Date(b.checked_at).getTime() : 0;
+          return tb - ta;
+        });
+
+        const last = sorted.slice(0, 5);
+
+        const uniqueDocIds = Array.from(new Set(last.map((c) => c.document_id)));
+        const docs = await Promise.all(
+          uniqueDocIds.map((docId) => api.get<any>(`/full-info/${docId}`))
+        );
+
+        const docMap = new Map<number, string>();
+        for (const d of docs) {
+          if (d?.data?.document_id && d?.data?.filename) {
+            docMap.set(d.data.document_id, d.data.filename as string);
+          }
+        }
+
+        const rows: CheckHistoryRow[] = last.map((c) => ({
+          ...c,
+          filename: docMap.get(c.document_id) ?? `Документ #${c.document_id}`,
+        }));
+
+        setCheckHistory(rows);
+      } catch (err: any) {
+        console.error("Ошибка загрузки истории проверок:", err);
+        setHistoryError(err?.response?.data?.detail || "Не удалось загрузить историю проверок");
+        setCheckHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [user?.user_id]);
+
+  const formatCheckedAt = (checkedAt?: string | null) => {
+    if (!checkedAt) return "—";
+    const d = new Date(checkedAt);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
   if (loading) {
     return (
       <Container sx={{ py: 6 }}>
@@ -146,7 +225,7 @@ const Profile = () => {
   }
 
   if (!user) {
-    return null;  // редирект: navigate(ROUTES.LOGIN);
+    return null;  
   }
 
   const initials = (() => {
@@ -167,6 +246,7 @@ const Profile = () => {
       <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
         {/* ЛЕВАЯ КОЛОНКА — ПРОФИЛЬ */}
         <Box flex={1} width="100%">
+          <div ref={telegramWidgetRef} style={{ display: "none" }} />
           <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
             <Box textAlign="center" mb={3}>
               <Avatar
@@ -299,12 +379,14 @@ const Profile = () => {
               variant="contained"
               startIcon={<Edit />}
               sx={{ mt: 4, py: 1.8, borderRadius: 3 }}
+              onClick={() => navigate("/profile/edit")}
             >
               Редактировать профиль
             </Button>
           </Paper>
         </Box>
 
+        {/* ПРАВАЯ КОЛОНКА */}
         <Box flex={2} width="100%">
           <Stack spacing={4}>
             <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
@@ -312,19 +394,93 @@ const Profile = () => {
                 Статистика проверок
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={3} mt={2}>
+                {/* Общее количество проверок */}
                 <Box flex={1} textAlign="center" bgcolor="primary.50" p={3} borderRadius={3}>
-                  <Typography variant="h4" fontWeight="bold" color="primary.main">247</Typography>
-                  <Typography variant="body2" color="text.secondary">Документов</Typography>
+                  {timeLoading ? (
+                    <CircularProgress size={32} />
+                  ) : (
+                    <>
+                      <Typography variant="h4" fontWeight="bold" color="primary.main">
+                        {totalChecks}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Проверок
+                      </Typography>
+                    </>
+                  )}
                 </Box>
+
+                {/* Среднее соответствие (пока статично) */}
                 <Box flex={1} textAlign="center" bgcolor="success.50" p={3} borderRadius={3}>
-                  <Typography variant="h4" fontWeight="bold" color="success.main">94.2%</Typography>
-                  <Typography variant="body2" color="text.secondary">Соответствие</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="success.main">
+                    -
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Соответствие
+                  </Typography>
                 </Box>
+
+                {/* Среднее время проверки */}
                 <Box flex={1} textAlign="center" bgcolor="info.50" p={3} borderRadius={3}>
-                  <Typography variant="h4" fontWeight="bold" color="info.main">12 мин</Typography>
-                  <Typography variant="body2" color="text.secondary">Среднее время</Typography>
+                  {timeLoading ? (
+                    <CircularProgress size={32} />
+                  ) : (
+                    <>
+                      <Typography variant="h4" fontWeight="bold" color="info.main">
+                        {averageTimeFormatted}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Среднее время
+                      </Typography>
+                    </>
+                  )}
                 </Box>
               </Stack>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                История проверок
+              </Typography>
+
+              {historyLoading ? (
+                <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : historyError ? (
+                <Typography color="error.main" sx={{ mt: 1 }}>
+                  {historyError}
+                </Typography>
+              ) : checkHistory.length === 0 ? (
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  У вас пока нет выполненных проверок
+                </Typography>
+              ) : (
+                <List dense sx={{ mt: 1 }}>
+                  {checkHistory.map((item) => (
+                    <ListItem
+                      key={item.check_id}
+                      disableGutters
+                      sx={{ py: 1.2, borderBottom: "1px solid", borderColor: "divider" }}
+                      alignItems="flex-start"
+                    >
+                      <ListItemText
+                        primary={item.filename}
+                        secondary={formatCheckedAt(item.checked_at)}
+                        primaryTypographyProps={{ fontWeight: 600 }}
+                      />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{ ml: 2, mt: 0.5 }}
+                        onClick={() => navigate(API_ROUTES.DOCUMENTS.CHECK_RESULT(String(item.check_id)))}
+                      >
+                        Открыть
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
             </Paper>
 
             <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
@@ -332,7 +488,10 @@ const Profile = () => {
                 Последние документы
               </Typography>
               <Typography color="text.secondary">
-                У вас пока нет проверенных документов
+                {totalChecks === 0 
+                  ? "У вас пока нет проверенных документов"
+                  : `Всего проверок: ${totalChecks}`
+                }
               </Typography>
             </Paper>
 
@@ -356,3 +515,5 @@ const Profile = () => {
 };
 
 export default Profile;
+
+

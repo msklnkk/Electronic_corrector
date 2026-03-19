@@ -9,12 +9,28 @@ export const API_ROUTES = {
   },
   DOCUMENTS: {
     UPLOAD: '/upload',
+    ALL: '/all_documents',
+    BY_USER: (userId: number) => `/documents_by_user/${userId}`,
+    FULL_INFO: (documentId: number) => `/full-info/${documentId}`,
+    MISTAKES: (documentId: number) => `/mistakes/${documentId}`,
     CHECK_START: '/gost-check/start',
-    CHECK_RESULT: (id: string) => `/gost-check/result/${id}`,
+    CHECK_STATUS: (documentId: number) => `/gost-check/status/${documentId}`,
+    CHECK_RESULT: (checkId: string) => `/gost-check/result/${checkId}`,
   },
   TELEGRAM: {
     AUTH: '/telegram-auth',
     CHECK_SUBSCRIPTION: '/check-tg-subscription',
+  },
+  USERS: {
+    ALL: '/all_users',
+    ADD: '/add_user',
+    UPDATE: (userId: number) => `/update_user/${userId}`,
+    DELETE: (userId: number) => `/delete_user/${userId}`,
+  },
+  CHECKS: {
+    ALL: '/all_checks',
+    BY_ID: (checkId: number) => `/check/${checkId}`,
+    BY_DOCUMENT: (documentId: number) => `/checks/document/${documentId}`,
   },
 } as const;
 

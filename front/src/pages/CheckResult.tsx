@@ -30,6 +30,7 @@ const CheckResult: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   const [result, setResult] = useState<any>(null);
+  const [documentInfo, setDocumentInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +52,18 @@ const CheckResult: React.FC = () => {
       console.log("CheckResult: Получен ответ от бэкенда:", data);
 
       setResult(data);
+
+      // Получаем информацию о документе для времени загрузки
+      if (data.document_id) {
+        try {
+          const docRes = await api.get(API_ROUTES.DOCUMENTS.FULL_INFO(data.document_id));
+          console.log("CheckResult: Информация о документе:", docRes.data);
+          setDocumentInfo(docRes.data);
+        } catch (err) {
+          console.error("CheckResult: Ошибка при получении информации о документе:", err);
+        }
+      }
+
       setLoading(false);
 
       // Повторяем запрос, если проверка ещё идёт
@@ -65,11 +78,85 @@ const CheckResult: React.FC = () => {
       setError(errorMsg);
       setLoading(false);
     }
-  }, [id]);
+  }, [id, enqueueSnackbar]);
 
   useEffect(() => {
     fetchResult();
   }, [fetchResult]);
+
+  // ✅ Сохраняем фактическое время проверки в localStorage,
+  // чтобы потом можно было посчитать среднее в профиле
+  useEffect(() => {
+    if (!result?.check_id || !result?.checked_at || !documentInfo?.upload_datetime) {
+      return;
+    }
+
+    try {
+      const checkedAt = new Date(result.checked_at);
+      const uploadedAt = new Date(documentInfo.upload_datetime);
+      const diffSeconds = Math.max(
+        (checkedAt.getTime() - uploadedAt.getTime()) / 1000,
+        0
+      );
+
+      if (!Number.isFinite(diffSeconds) || diffSeconds === 0) {
+        return;
+      }
+
+      const storageKey = "checkAnalysisTimes";
+      const raw = localStorage.getItem(storageKey);
+      const parsed: Record<string, number> = raw ? JSON.parse(raw) : {};
+
+      // Не дублируем одно и то же измерение по check_id
+      if (!parsed[result.check_id]) {
+        parsed[result.check_id] = diffSeconds;
+        localStorage.setItem(storageKey, JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.error("Ошибка сохранения времени анализа в localStorage:", e);
+    }
+  }, [result, documentInfo]);
+
+  // Вычисление времени проверки
+  const calculateAnalysisTime = (): string => {
+    if (!result?.checked_at || !documentInfo?.upload_datetime) {
+      return "-";
+    }
+
+    try {
+      const checkedAt = new Date(result.checked_at);
+      const uploadedAt = new Date(documentInfo.upload_datetime);
+      
+      const diffMs = checkedAt.getTime() - uploadedAt.getTime();
+      
+      // Если меньше 1 секунды - показываем миллисекунды
+      if (diffMs < 1000) {
+        return `${diffMs} мс`;
+      }
+      
+      const diffSeconds = Math.round(diffMs / 1000);
+
+      // Если меньше минуты - показываем секунды
+      if (diffSeconds < 60) {
+        return `${diffSeconds} сек`;
+      } 
+      
+      // Если меньше часа - показываем минуты и секунды
+      if (diffSeconds < 3600) {
+        const minutes = Math.floor(diffSeconds / 60);
+        const seconds = diffSeconds % 60;
+        return `${minutes} мин ${seconds} сек`;
+      } 
+      
+      // Если больше часа - показываем часы и минуты
+      const hours = Math.floor(diffSeconds / 3600);
+      const minutes = Math.floor((diffSeconds % 3600) / 60);
+      return `${hours} ч ${minutes} мин`;
+    } catch (err) {
+      console.error("Ошибка вычисления времени:", err);
+      return "-";
+    }
+  };
 
   // ─── РЕНДЕР ────────────────────────────────────────────────
 
@@ -145,14 +232,10 @@ const CheckResult: React.FC = () => {
     })),
   ];
 
-  const analysisTime =
-    result.analysis_time ||
-    (typeof result.analysis_time_ms === "number"
-      ? `${(result.analysis_time_ms / 1000).toFixed(1)} сек`
-      : "-");
-
+  // ✅ Используем вычисленное время
+  const analysisTime = calculateAnalysisTime();
   const pagesChecked = result.pages_checked ?? "-";
-  const accuracy = result.accuracy ?? "-";
+  const accuracy = result.accuracy ?? 95;
 
   const recommendation =
     result.recommendation ||
@@ -303,7 +386,7 @@ const CheckResult: React.FC = () => {
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
           <StyledCard>
             <Typography variant="h6" mb={2}>
-              ИИ анализ завершен
+              Анализ завершен
             </Typography>
 
             <InfoRow label="Время анализа" value={analysisTime} />

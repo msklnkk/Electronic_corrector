@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import CheckDocument from "./pages/CheckDocument";
 import CheckResult from "./pages/CheckResult";
 import Profile from "./pages/Profile";
+import EditProfile from "./pages/EditProfile";
 
 import { ROUTES } from "./config/constants";
 
@@ -69,6 +70,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute>
+                <EditProfile />
               </ProtectedRoute>
             }
           />
