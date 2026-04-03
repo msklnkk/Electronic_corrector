@@ -1,3 +1,4 @@
+# backend/src/project/schemas/documents.py
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -35,7 +36,6 @@ class DocumentSchema(DocumentBase):
     document_id: int
     model_config = ConfigDict(from_attributes=True)
 
-# Новые схемы для загрузки файлов
 class FileUploadResponse(BaseModel):
     filename: str
     saved_filename: str

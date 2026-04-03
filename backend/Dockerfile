@@ -34,9 +34,11 @@ RUN poetry config virtualenvs.create false && \
     poetry install --only main --no-root --no-interaction --no-ansi
 
 COPY ./src /app/src
+COPY ./grpc_checker /app/grpc_checker
+
 RUN chmod +x /app/src/start.sh
 
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/src:/app
 
 EXPOSE 8000
 CMD ["/app/src/start.sh"]

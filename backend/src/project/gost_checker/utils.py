@@ -1,9 +1,9 @@
+# backend/src/project/gost_checker/utils.py
 import os
 import tempfile
-from typing import Dict, Any
 
 def save_uploaded_file(upload_file, destination_dir: str = None) -> str:
-    """Сохранение загруженного файла во временную директорию"""
+    # Сохранение загруженного файла во временную директорию
     if destination_dir is None:
         destination_dir = tempfile.gettempdir()
     
@@ -16,7 +16,7 @@ def save_uploaded_file(upload_file, destination_dir: str = None) -> str:
     return file_path
 
 def cleanup_temp_file(file_path: str):
-    """Удаление временного файла"""
+    # Удаление временного файла
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -24,7 +24,7 @@ def cleanup_temp_file(file_path: str):
         print(f"Ошибка при удалении файла {file_path}: {e}")
 
 def map_document_type(document_type: str) -> str:
-    """Маппинг типа документа"""
+    # Маппинг типа документа
     type_map = {
         'курсовая': 'COURSE_WORK',
         'бакалаврская': 'BACHELOR_THESIS',

@@ -1,11 +1,9 @@
+# backend/src/project/api/gost_check_routes.py
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List
 from decimal import Decimal
 
-# Исправленные импорты
-from project.infrastructure.postgres.database import database  # Импортируем database
+from project.infrastructure.postgres.database import database
 from project.infrastructure.postgres.models import Users, Documents, Status
 from project.schemas.gost_check import GostCheckRequest, GostCheckResponse, GostCheckResult, GostCheckStatus
 from project.core.gost_service import GostCheckService
@@ -19,7 +17,7 @@ async def start_gost_check(
     background_tasks: BackgroundTasks,
     current_user: Users = Depends(get_current_user),
 ):
-    """Запустить проверку документа на соответствие ГОСТу"""
+    # Запустить проверку документа на соответствие ГОСТу
     async with database.session() as session:
         # Проверяем существование документа и права доступа
         from sqlalchemy import select
@@ -57,7 +55,7 @@ async def get_gost_check_status(
     document_id: int,
     current_user: Users = Depends(get_current_user),
 ):
-    """Получить статус проверки ГОСТ"""
+    # Получить статус проверки ГОСТ
     async with database.session() as session:
         from sqlalchemy import select
         stmt = select(Documents).where(
@@ -101,7 +99,7 @@ async def get_gost_check_result(
     check_id: int,
     current_user: Users = Depends(get_current_user),
 ):
-    """Получить результат проверки ГОСТ"""
+    # Получить результат проверки ГОСТ
     async with database.session() as session:
         service = GostCheckService(session)
         result = await service.get_check_result(check_id)

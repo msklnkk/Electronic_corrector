@@ -1,3 +1,4 @@
+# backend/src/project/infrastructure/postgres/repository/standard_repo.py
 from typing import Type
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +38,7 @@ class StandardRepository:
         name: str,
         version: str | None
     ) -> Standart | None:
-        """Проверка уникальности стандарта name+version"""
+        # Проверка уникальности стандарта name+version
         query = select(self._collection).where(
             self._collection.name == name,
             self._collection.version == version

@@ -1,10 +1,11 @@
-from typing import Type
+# backend/src/project/infrastructure/postgres/repository/user_repo.py
+from typing import Type, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, true
 from sqlalchemy.exc import IntegrityError, InterfaceError
 
-from project.schemas.user import UserCreate, UserSchema
+from project.schemas.user import UserCreate, UserSchema, UserUpdate, UserUpdateSelf
 from project.infrastructure.postgres.models import Users
 from project.core.exceptions import UserNotFound, UserAlreadyExists, UserNameAlreadyExists, UserTelegramAlreadyExists
 
@@ -39,12 +40,12 @@ class UserRepository:
         return UserSchema.model_validate(obj=user)
 
     async def get_user_by_login(self, session: AsyncSession, username: str) -> UserSchema | None:
-        """Проверка существования пользователя по логину"""
+        # Проверка существования пользователя по логину
         query = select(self._collection).where(self._collection.username == username)
         return await session.scalar(query)
 
     async def get_user_by_tg_username(self, session: AsyncSession, tg_username: str) -> Users | None:
-        """Проверка существования по Telegram username"""
+        # Проверка существования по Telegram username
         query = select(self._collection).where(self._collection.tg_username == tg_username)
         return await session.scalar(query)
 
@@ -73,11 +74,15 @@ class UserRepository:
             created_user = await session.scalar(query)
             await session.flush()
         except IntegrityError:
-            raise UserAlreadyExists(mail=user.mail)
+            raise UserAlreadyExists(mail=user.email)
 
         return UserSchema.model_validate(obj=created_user)
 
-    async def update_user(self, session: AsyncSession, user_id: int, user: UserCreate) -> UserSchema:
+    async def update_user(
+            self,
+            session: AsyncSession,
+            user_id: int,
+            user: Union[UserCreate, UserUpdate, UserUpdateSelf]) -> UserSchema:
         # Проверяем существование пользователя
         existing_user = await session.scalar(
             select(self._collection).where(self._collection.user_id == user_id)
@@ -85,27 +90,29 @@ class UserRepository:
         if not existing_user:
             raise UserNotFound(_id=user_id)
 
+        update_data = user.model_dump(exclude_unset=True, exclude_none=True)
+
         # Проверяем уникальность логина при обновлении
-        if user.username and user.username != existing_user.username:
-            exists_login = await self.get_user_by_login(session, user.username)
+        if 'username' in update_data and update_data['username'] != existing_user.username:
+            exists_login = await self.get_user_by_login(session, update_data['username'])
             if exists_login:
-                raise UserNameAlreadyExists(login=user.username)
+                raise UserNameAlreadyExists(login=update_data['username'])
 
         # Проверяем уникальность Telegram username
-        if user.tg_username and user.tg_username != existing_user.tg_username:
-            exists_tg = await self.get_user_by_tg_username(session, user.tg_username)
+        if 'tg_username' in update_data and update_data['tg_username'] != existing_user.tg_username:
+            exists_tg = await self.get_user_by_tg_username(session, update_data['tg_username'])
             if exists_tg:
-                raise UserTelegramAlreadyExists(tg_username=user.tg_username)
+                raise UserTelegramAlreadyExists(tg_username=update_data['tg_username'])
 
-        if user.telegram_id is not None and user.telegram_id != existing_user.telegram_id:
-            exists = await self.get_user_by_telegram_id(session, user.telegram_id)
+        if 'telegram_id' in update_data and update_data['telegram_id'] != existing_user.telegram_id:
+            exists = await self.get_user_by_telegram_id(session, update_data['telegram_id'])
             if exists:
-                raise UserTelegramAlreadyExists(tg_username=f"ID {user.telegram_id}")
+                raise UserTelegramAlreadyExists(tg_username=f"ID {update_data['telegram_id']}")
 
         query = (
             update(self._collection)
             .where(self._collection.user_id == user_id)
-            .values(user.model_dump())
+            .values(**update_data)
             .returning(self._collection)
         )
 

@@ -1,12 +1,14 @@
+# backend/src/main.py
 import asyncio
 import logging
-import uvicorn
+from contextlib import asynccontextmanager
+from typing import Optional
 
+import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from project.api.auth_routes import auth_routes
-from project.core.config import settings
 from project.api.user_routes import user_routes
 from project.api.document_routes import document_routes
 from project.api.standard_routes import standard_routes
@@ -17,8 +19,40 @@ from project.api.status_routes import status_routes
 from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
+from project.core.config import settings
+
+# Импорт gRPC клиента
+from project.grpc.client import GostCheckerClient
 
 logger = logging.getLogger(__name__)
+
+# Глобальный gRPC клиент
+grpc_client: Optional[GostCheckerClient] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Lifespan события — выполняется при старте и остановке приложения
+    global grpc_client
+
+    logger.info("Запуск FastAPI приложения...")
+
+    # Инициализация gRPC клиента
+    try:
+        grpc_client = GostCheckerClient(target="grpc_checker:50051")
+        await grpc_client.connect()
+        logger.info("gRPC клиент успешно подключен к grpc_checker:50051")
+    except Exception as e:
+        logger.error(f"Не удалось подключиться к gRPC сервису: {e}")
+        grpc_client = None
+
+    yield  # Здесь приложение работает
+
+    # Корректное завершение
+    logger.info("Завершение FastAPI приложения...")
+    if grpc_client:
+        await grpc_client.close()
+        logger.info("gRPC клиент закрыт")
 
 
 def create_app() -> FastAPI:
@@ -31,17 +65,22 @@ def create_app() -> FastAPI:
     if settings.LOG_LEVEL in ["DEBUG", "INFO"]:
         app_options["debug"] = True
 
-    app = FastAPI(root_path=settings.ROOT_PATH, **app_options)
+    app = FastAPI(
+        root_path=settings.ROOT_PATH,
+        lifespan=lifespan,
+        **app_options
+    )
 
-    # ✅ CORS настроен ДО подключения роутеров
+    # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],  # Добавь "*" для разработки
+        allow_origins=["http://localhost:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    # Роутеры
     app.include_router(auth_routes, tags=["Auth"])
     app.include_router(user_routes, tags=["User"])
     app.include_router(document_routes, tags=["Documents"])
@@ -60,27 +99,19 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-# ❌ УДАЛИ ЭТО - второй раз CORS добавляется ПОСЛЕ return!
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["http://localhost:3000"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-
+# Для запуска через uvicorn
 async def run() -> None:
-    config = uvicorn.Config("main:app", host="0.0.0.0", port=8000, reload=False)
-    server = uvicorn.Server(config=config)
-    tasks = (
-        asyncio.create_task(server.serve()),
+    config = uvicorn.Config(
+        app="main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        log_level="info"
     )
-
-    await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    server = uvicorn.Server(config=config)
+    await server.serve()
 
 
 if __name__ == "__main__":
-    logger.debug(f"{settings.postgres_url}=")
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run())
+    logger.debug(f"Postgres URL: {settings.postgres_url}")
+    asyncio.run(run())

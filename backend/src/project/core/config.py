@@ -1,3 +1,4 @@
+# backend/src/project/core/config.py
 from pydantic_settings import BaseSettings
 from pydantic import SecretStr
 

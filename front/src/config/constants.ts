@@ -45,7 +45,7 @@ export const ROUTES = {
 } as const;
 
 export const TELEGRAM_CONFIG = {
-  BOT_USERNAME: process.env.REACT_APP_TELEGRAM_BOT_USERNAME || 'elecrtonic_corrector_bot',
+  BOT_USERNAME: process.env.REACT_APP_TELEGRAM_BOT_USERNAME || 'electronic_corrector_bot',
   CHANNEL_URL: process.env.REACT_APP_TELEGRAM_CHANNEL_URL || 'https://t.me/electronic_corrector',
 } as const;
 

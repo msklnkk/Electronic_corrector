@@ -1,3 +1,4 @@
+# backend/src/project/core/exceptions.py
 from typing import Final
 from fastapi import HTTPException, status
 

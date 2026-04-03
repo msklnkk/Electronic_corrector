@@ -1,4 +1,3 @@
-
 services:
   postgres:
     image: postgres:16-alpine3.19
@@ -11,37 +10,56 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
-      - app_db_network
+      - app_network
     ports:
       - '127.0.0.1:5432:5432'
     healthcheck:
-      # this command checks if the database is ready, right on the source db server
-      test: [ "CMD-SHELL", "pg_isready" ]
+      test: ["CMD-SHELL", "pg_isready"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   app:
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     image: fastapi_app
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - ./src:/app/src
     env_file:
       - .env
     networks:
-      - app_db_network
+      - app_network
     ports:
       - '127.0.0.1:8020:8000'
+    entrypoint: sh -c "./src/start.sh"
+    environment:
+      - GRPC_CHECKER_HOST=grpc_checker
+      - PYTHONPATH=/app/src:/app  # ✅ добавлено: /app/src для project, /app для grpc_checker
+
+  grpc_checker:
     build:
       context: .
-    pull_policy: build
-    entrypoint: sh -c "./src/start.sh"
-
+      dockerfile: grpc_checker/Dockerfile
+    image: grpc_checker
+    restart: always
+    volumes:
+      - ./grpc_checker/rules:/app/rules
+      - ./src:/app/src                    # ✅ добавлено: монтируем src чтобы видеть project
+    networks:
+      - app_network
+    ports:
+      - '127.0.0.1:50051:50051'
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app/grpc_checker:/app/src  # ✅ добавлено: пути к обоим модулям
 
 networks:
-  app_db_network:
-    name: app_db_network
+  app_network:
+    name: app_network
     driver: bridge
     ipam:
       config:

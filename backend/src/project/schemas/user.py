@@ -1,5 +1,5 @@
+# backend/src/project/schemas/user.py
 from typing import Optional
-
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
@@ -22,23 +22,32 @@ class UserCreate(UserBase):
     pass
 
 class UserUpdate(BaseModel):
+    # Схема для обновления администратором
     first_name: Optional[str] = None
     surname_name: Optional[str] = None
     patronomic_name: Optional[str] = None
-
     email: Optional[EmailStr] = None
-    user_name: Optional[str] = None
+    username: Optional[str] = None
     password: Optional[str] = Field(default=None, min_length=6)
-
     role: Optional[str] = None
     is_admin: Optional[bool] = None
-
     tg_username: Optional[str] = None
     telegram_id: Optional[int] = None
     is_tg_subscribed: Optional[bool] = None
-
     theme: Optional[str] = None
     is_push_enabled: Optional[bool] = None
+
+class UserUpdateSelf(BaseModel):
+    # Схема для обновления данных самим пользователем
+    first_name: Optional[str] = None
+    surname_name: Optional[str] = None
+    patronomic_name: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=6)
+    tg_username: Optional[str] = None
+    # theme: Optional[str] = None
+    # is_push_enabled: Optional[bool] = None
+    model_config = ConfigDict(from_attributes=True)
 
 class UserSchema(UserBase):
     user_id: int

@@ -17,6 +17,8 @@ import {
   ListItemIcon,
   ListItemText,
   Box,
+  CircularProgress, 
+  Backdrop,
 } from "@mui/material";
 import {
   UploadFile,
@@ -28,6 +30,33 @@ import {
 import { API_ROUTES, FILE_CONFIG, CHECK_TYPES } from "../config/constants";
 import { Footer } from "components";
 
+// Компонент окна загрузки
+const AnalyzingOverlay: React.FC<{ open: boolean; filename?: string }> = ({ open, filename }) => (
+  <Backdrop
+    open={open}
+    sx={{
+      zIndex: 9999,
+      flexDirection: "column",
+      gap: 3,
+      bgcolor: "rgba(0,0,0,0.85)",
+      color: "white",
+    }}
+  >
+    <CircularProgress size={80} thickness={4} sx={{ color: "primary.main" }} />
+    <Typography variant="h5" fontWeight={700} textAlign="center">
+      Анализируем документ...
+    </Typography>
+    {filename && (
+      <Typography variant="body1" sx={{ opacity: 0.7 }} textAlign="center">
+        {filename}
+      </Typography>
+    )}
+    <Typography variant="body2" sx={{ opacity: 0.5 }} textAlign="center">
+      Это может занять несколько секунд
+    </Typography>
+  </Backdrop>
+);
+
 
 const CheckDocumentPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,6 +65,7 @@ const CheckDocumentPage: React.FC = () => {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -51,6 +81,37 @@ const CheckDocumentPage: React.FC = () => {
     if (event.target.files?.[0]) {
       setFile(event.target.files[0]);
     }
+  };
+
+  // Polling - ждем пока статус не станет финальным
+  const pollUntilReady = async (checkId: string | number): Promise<void> => {
+    const MAX_ATTEMPTS = 60;   // максимум 3 минуты
+    const POLL_INTERVAL = 3000; // каждые 3 секунды
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        const res = await api.get(API_ROUTES.DOCUMENTS.CHECK_RESULT(String(checkId)));
+        const data = res.data;
+
+        console.log(`Попытка ${attempt + 1}: статус =`, data?.status);
+
+        const isProcessing =
+          data?.status === "Анализируется" ||
+          data?.status === "analyzing" ||
+          (data?.total_checks === 0 && data?.passed_checks === 0 && !data?.errors?.length);
+
+        if (!isProcessing) {
+          console.log("Проверка завершена!");
+          return;
+        }
+      } catch (err) {
+        console.error("Ошибка polling:", err);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+    }
+
+    console.warn("Таймаут polling - переходим на страницу результата");
   };
 
   const handleUpload = async () => {
@@ -91,21 +152,33 @@ const CheckDocumentPage: React.FC = () => {
         return;
       }
 
-      console.log("✅ check_id получен:", checkId);
-      console.log("🚀 Переход на:", API_ROUTES.DOCUMENTS.CHECK_RESULT(checkId));
+      setUploading(false);
+      setAnalyzing(true);
 
+      // Polling пока проверка не завершится
+      await pollUntilReady(checkId);
+
+      // Переходим на результат только когда готово
       navigate(API_ROUTES.DOCUMENTS.CHECK_RESULT(checkId));
 
+      console.log("✅ check_id получен:", checkId);
+      console.log("🚀 Переход на:", API_ROUTES.DOCUMENTS.CHECK_RESULT(checkId));
     } catch (err: any) {
       console.error("❌ Ошибка:", err.response?.data);
       alert("Ошибка: " + (err.response?.data?.detail || err.message));
     } finally {
       setUploading(false);
+      setAnalyzing(false);
     }
   };
 
+  
+
   return (
     <>
+       {/* Оверлей анализа */}
+      <AnalyzingOverlay open={uploading || analyzing} filename={file?.name} />
+
       <Container maxWidth="lg" sx={{ py: 6 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
           <Stack flex={2} spacing={3}>
@@ -209,7 +282,7 @@ const CheckDocumentPage: React.FC = () => {
                 onClick={handleUpload}
                 sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}
               >
-                {uploading ? "Загрузка и проверка..." : "Начать проверку"}
+                {uploading || analyzing ? "Анализируем..." : "Начать проверку"}
               </Button>
             </Box>
           </Stack>

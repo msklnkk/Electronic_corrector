@@ -1,11 +1,9 @@
+# backend/src/project/api/document_routes.py
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.responses import FileResponse
-import shutil
-import os
 from pathlib import Path
-from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
+from project.core.gost_service import GostCheckService
 
 from project.api.depends import (
     database,
@@ -26,7 +24,7 @@ from project.core.config import settings
 
 # УБИРАЕМ require_tg_subscription из зависимостей роутера
 # Было: dependencies=[Depends(require_tg_subscription)]
-document_routes = APIRouter()  # ← теперь без проверки подписки
+document_routes = APIRouter()  # теперь без проверки подписки
 
 
 @document_routes.get(
@@ -144,7 +142,7 @@ async def update_document(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Документ не найден")
 
         if not current_user.is_admin and document.user_id != current_user.user_id:
-            raise HTTPException(status_code=status.HTTP_403_FORБIDDEN, detail="Нет доступа")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")
 
         try:
             updated_document = await document_repo.update_document(session, document_id, document_dto)
@@ -187,9 +185,7 @@ async def upload_document_file(
         is_example: bool = Form(False),
         current_user=Depends(get_current_user)
 ) -> FileUploadResponse:
-    """
-    Загрузка документа через проводник
-    """
+    # Загрузка документа через проводник
     try:
         print(f"=== НАЧАЛО ЗАГРУЗКИ ===")
         print(f"Файл: {file.filename}")
@@ -272,7 +268,7 @@ async def check_document_gost(
     document_id: int,
     current_user=Depends(get_current_user),
 ):
-    """Запустить проверку ГОСТ для документа"""
+    # Запустить проверку ГОСТ для документа
     async with database.session() as session:
         # Получаем документ асинхронно через репозиторий
         document = await document_repo.get_document_by_id(session, document_id)

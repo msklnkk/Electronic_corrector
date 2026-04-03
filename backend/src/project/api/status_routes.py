@@ -1,3 +1,4 @@
+# backend/src/project/api/status_routes.py
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
 from fastapi import status
@@ -6,7 +7,6 @@ from project.core.exceptions import StatusNotFound, StatusAlreadyExists
 from project.schemas.status import StatusCreate, StatusSchema
 
 from project.api.depends import database, status_repo, get_current_user, check_for_admin_access
-from project.schemas.user import UserSchema
 
 status_routes = APIRouter()
 
