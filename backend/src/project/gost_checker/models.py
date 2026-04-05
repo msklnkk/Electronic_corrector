@@ -1,4 +1,5 @@
-from dataclasses import dataclass, asdict, field
+# backend/src/project/gost_checker/models.py
+from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional
 from enum import Enum
 
@@ -15,7 +16,7 @@ class RuleType(str, Enum):
 
 @dataclass
 class GOSTRule:
-    """Модель правила ГОСТ"""
+    # Модель правила ГОСТ
     id: str
     section: str
     title: str
@@ -33,7 +34,7 @@ class GOSTRule:
 
 @dataclass
 class CheckResult:
-    """Результат проверки"""
+    # Результат проверки
     rule_id: str
     section: str
     title: str
@@ -46,13 +47,39 @@ class CheckResult:
     suggestion: Optional[str] = None
     
     def to_dict(self) -> Dict:
-        result = asdict(self)
-        result['severity'] = result['severity'].value
-        return result
+        return {
+            'rule_id': self.rule_id,
+            'section': self.section,
+            'title': self.title,
+            'severity': self.severity.value if isinstance(self.severity, RuleSeverity) else self.severity,
+            'is_passed': self.is_passed,
+            'message': self.message,
+            # Безопасная конвертация любых типов в строку
+            'expected_value': self._safe_serialize(self.expected_value),
+            'actual_value': self._safe_serialize(self.actual_value),
+            'details': self._safe_serialize(self.details),
+            'suggestion': self.suggestion
+        }
+
+    @staticmethod
+    def _safe_serialize(value: Any) -> Any:
+        # Безопасная конвертация любых типов для JSON
+        if value is None:
+            return None
+        if isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, (list, tuple)):
+            return [CheckResult._safe_serialize(v) for v in value]
+        if isinstance(value, dict):
+            return {k: CheckResult._safe_serialize(v) for k, v in value.items()}
+        if isinstance(value, Enum):
+            return value.value
+        # Для всех остальных типов конвертируем в строку
+        return str(value)
 
 @dataclass
 class DocumentCheckReport:
-    """Отчет о проверке документа"""
+    # Отчет о проверке документа
     document_id: str
     total_checks: int
     passed_checks: int
@@ -64,20 +91,26 @@ class DocumentCheckReport:
     filename: Optional[str] = None
     
     def to_dict(self) -> Dict:
-        result = asdict(self)
-        # Конвертируем все результаты
-        result['results'] = [r.to_dict() for r in self.results]
-        result['filename'] = self.filename
-        return result
+        return {
+            'document_id': self.document_id,
+            'total_checks': self.total_checks,
+            'passed_checks': self.passed_checks,
+            'failed_checks': self.failed_checks,
+            'critical_issues': self.critical_issues,
+            'warning_issues': self.warning_issues,
+            'timestamp': self.timestamp,
+            'filename': self.filename,
+            'results': [r.to_dict() for r in self.results]
+        }
     
     def get_failed_results(self) -> List[CheckResult]:
-        """Возвращает только неудачные проверки"""
+        # Возвращает только неудачные проверки
         return [r for r in self.results if not r.is_passed]
     
     def get_critical_issues(self) -> List[CheckResult]:
-        """Возвращает критические ошибки"""
+        # Возвращает критические ошибки
         return [r for r in self.results if not r.is_passed and r.severity == RuleSeverity.CRITICAL]
     
     def get_warning_issues(self) -> List[CheckResult]:
-        """Возвращает предупреждения"""
+        # Возвращает предупреждения
         return [r for r in self.results if not r.is_passed and r.severity == RuleSeverity.WARNING]

@@ -1,3 +1,4 @@
+# backend/src/project/api/user_routes.py
 import hashlib
 import hmac
 
@@ -7,7 +8,7 @@ from fastapi import status
 
 from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, UserNotFound, UserTelegramAlreadyExists
 from project.resource.auth import get_password_hash
-from project.schemas.user import UserCreate, UserSchema
+from project.schemas.user import UserCreate, UserSchema, UserUpdateSelf
 
 from project.api.depends import database, user_repo, get_current_user, check_for_admin_access
 from project.services.telegram import TG_BOT_TOKEN, is_user_subscribed
@@ -62,13 +63,13 @@ async def update_user(
     try:
         async with database.session() as session:
 
-            # --- Проверка уникальности логина ---
+            # Проверка уникальности логина
             if user_dto.username:
                 exists_login = await user_repo.get_user_by_login(session, user_dto.username)
                 if exists_login and exists_login.user_id != user_id:
                     raise UserNameAlreadyExists(login=user_dto.username)
 
-            # --- Проверка уникальности Telegram username ---
+            # Проверка уникальности Telegram username
             if user_dto.tg_username:
                 exists_tg = await user_repo.get_user_by_tg_username(session, user_dto.tg_username)
                 if exists_tg and exists_tg.user_id != user_id:
@@ -94,7 +95,7 @@ async def update_user(
 async def delete_user(
         user_id: int,
 ) -> None:
-    """Запрос: удалить пользователя"""
+    # Запрос: удалить пользователя
     try:
         async with database.session() as session:
             user = await user_repo.delete_user(session=session, user_id=user_id)
@@ -111,10 +112,41 @@ async def delete_user(
 async def get_current_user_info(
     current_user: UserSchema = Depends(get_current_user),
 ) -> UserSchema:
-    """
-    Получить данные текущего авторизованного пользователя
-    """
+    # Получить данные текущего авторизованного пользователя
     return current_user
+
+
+@user_routes.put(
+    "/update_me",
+    response_model=UserSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def update_me(
+    user_dto: UserUpdateSelf,
+    current_user: UserSchema = Depends(get_current_user),
+) -> UserSchema:
+    # Обновить свои данные
+    try:
+        async with database.session() as session:
+
+            # Хэшируем пароль только если передан
+            if user_dto.password:
+                user_dto.password = get_password_hash(password=user_dto.password)
+
+            updated_user = await user_repo.update_user(
+                session=session,
+                user_id=current_user.user_id,
+                user=user_dto,
+            )
+
+    except UserNotFound as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
+    except UserNameAlreadyExists as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
+    except UserTelegramAlreadyExists as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
+
+    return updated_user
 
 
 @user_routes.post("/telegram-auth")
@@ -167,7 +199,7 @@ async def check_tg_subscription(
             detail="Telegram-аккаунт не привязан"
         )
 
-    # Реальная проверка через Telegram Bot API
+    # Проверка через Telegram Bot API
     subscribed = await is_user_subscribed(current_user.telegram_id)
 
     # Если статус изменился — обновляем в базе

@@ -1,18 +1,19 @@
+# backend/src/project/infrastructure/postgres/repository/gost_check_repo.py
 import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Optional, Dict, Any, Type
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from project.infrastructure.postgres.models import Check, Documents, Status, Standart, Mistake, MistakeType
+from project.infrastructure.postgres.models import Check, Documents, Standart, Mistake, MistakeType
 
 class AsyncGostCheckRepository:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
 
     async def create_gost_check(self, document_id: int) -> Check:
-        """Создать проверку ГОСТ для документа"""
+        # Создать проверку ГОСТ для документа
         gost_standard = await self.get_or_create_gost_standard()
 
         check = Check(
@@ -51,7 +52,7 @@ class AsyncGostCheckRepository:
             raise ValueError(f"Check {check_id} не найден")
 
         # Сохраняем полный JSON
-        check.result = json.dumps(result) if result else json.dumps({})
+        check.result = json.dumps(result, ensure_ascii=False) if result else json.dumps({})
         check.checked_at = datetime.now()
 
         # Обновляем документ score
@@ -114,6 +115,13 @@ class AsyncGostCheckRepository:
             self.db.add(mistake)
 
         await self.db.commit()
+
+    async def get_mistakes(self, document_id: int) -> List[Mistake]:
+        # Получить все ошибки документа
+        res = await self.db.execute(
+            select(Mistake).where(Mistake.document_id == document_id)
+        )
+        return res.scalars().all()
 
     async def get_check_by_id(self, check_id: int) -> Optional[Check]:
         res = await self.db.execute(select(Check).where(Check.check_id == check_id))

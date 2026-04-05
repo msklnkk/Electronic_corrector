@@ -1,3 +1,4 @@
+# backend/src/project/schemas/status.py
 from pydantic import BaseModel, ConfigDict
 
 

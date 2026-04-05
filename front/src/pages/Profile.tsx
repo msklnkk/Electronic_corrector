@@ -15,7 +15,7 @@ import {
   ListItem,
   ListItemText
 } from "@mui/material";
-import { Edit, Telegram as TelegramIcon } from "@mui/icons-material";
+import { Edit, Close, Telegram as TelegramIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "api";
@@ -23,12 +23,91 @@ import type { UserProfile } from "types";
 import { API_ROUTES, ROUTES } from "config/constants";
 import { useAverageCheckTime } from "../hooks/useAverageCheckTime";
 
+type EditFormData = {
+  first_name: string;
+  surname_name: string;
+  patronomic_name: string;
+  username: string;
+  tg_username: string;
+  password: string;
+};
+
 const Profile = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { averageTimeFormatted, totalChecks, loading: timeLoading } = useAverageCheckTime(user?.user_id);
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<EditFormData>({
+    first_name: "",
+    surname_name: "",
+    patronomic_name: "",
+    username: "",
+    tg_username: "",
+    password: "",
+  });
+
+  // Открыть диалог — заполняем форму текущими данными
+  const handleEditOpen = () => {
+    setFormData({
+      first_name: user?.first_name ?? "",
+      surname_name: user?.surname_name ?? "",
+      patronomic_name: user?.patronomic_name ?? "",
+      username: user?.username ?? "",
+      tg_username: user?.tg_username ?? "",
+      password: "",
+    });
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditOpen(false);
+    setEditError(null);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  // Отправка формы
+  const handleEditSubmit = async () => {
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      const token = localStorage.getItem("access_token");
+
+      // Отправляем только заполненные поля
+      const payload: Partial<EditFormData> = {};
+      if (formData.first_name) payload.first_name = formData.first_name;
+      if (formData.surname_name) payload.surname_name = formData.surname_name;
+      if (formData.patronomic_name) payload.patronomic_name = formData.patronomic_name;
+      if (formData.username) payload.username = formData.username;
+      if (formData.tg_username) payload.tg_username = formData.tg_username;
+      if (formData.password) payload.password = formData.password;
+
+      await api.put("/update_me", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Обновляем данные пользователя
+      const response = await api.get<UserProfile>("/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(response.data);
+      handleEditClose();
+
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Ошибка при сохранении";
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   type CheckHistoryItem = {
     check_id: number;
@@ -495,7 +574,7 @@ const Profile = () => {
               </Typography>
             </Paper>
 
-            <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
+            {/* <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Уведомления в браузере
               </Typography>
@@ -506,7 +585,7 @@ const Profile = () => {
                   color={user.is_push_enabled ? "success" : "default"}
                 />
               </Box>
-            </Paper>
+            </Paper> */}
           </Stack>
         </Box>
       </Stack>

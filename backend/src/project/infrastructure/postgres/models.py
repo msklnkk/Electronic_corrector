@@ -1,3 +1,4 @@
+# backend/src/project/infrastructure/postgres/models.py
 from decimal import Decimal
 from datetime import datetime, date
 from typing import Optional
@@ -27,14 +28,13 @@ class Users(Base):
     tg_username: Mapped[str] = mapped_column(unique=True, nullable=True, comment="Telegram:")
     is_tg_subscribed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    telegram_id: Mapped[Optional[int]] = mapped_column(  # ← НОВОЕ ПОЛЕ
+    telegram_id: Mapped[Optional[int]] = mapped_column(
         BigInteger, unique=True, nullable=True, comment="Telegram user ID (числовой)"
     )
 
     theme: Mapped[str] = mapped_column(String(10), nullable=False, default="light")
     is_push_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # ИСПРАВЛЕНО: Documents (с s), и "Users" (с s)
     documents: Mapped[list["Documents"]] = relationship(
         "Documents", back_populates="user", cascade="all, delete-orphan"
     )
@@ -61,7 +61,6 @@ class Documents(Base):
     score: Mapped[int] = mapped_column(Integer, nullable=False, comment="Соответствие стандарту (0-100)")
     analysis_time: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
 
-    # ИСПРАВЛЕНО: user → Users (с s), и только один mistakes
     mistakes: Mapped[list["Mistake"]] = relationship(
         "Mistake", back_populates="document", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -113,7 +112,7 @@ class Review(Base):
     rating: Mapped[int] = mapped_column(Integer, nullable=False, comment="Оценка от 1 до 5 звезд")
     review_text: Mapped[str] = mapped_column(Text, nullable=True, comment="Текст отзыва")
     created_at: Mapped[date] = mapped_column(Date, nullable=False, comment="Время отправки отзыва")
-    user: Mapped["Users"] = relationship("Users", back_populates="reviews")  # ← Users с s
+    user: Mapped["Users"] = relationship("Users", back_populates="reviews")
 
 
 class Status(Base):

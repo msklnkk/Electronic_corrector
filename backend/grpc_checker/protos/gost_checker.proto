@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package gostchecker;
+
+service GostCheckerService {
+  // Основной метод - проверка одного документа
+  rpc CheckDocument (CheckDocumentRequest) returns (CheckDocumentResponse) {}
+
+  // Пакетная проверка (полезно для производительности)
+  rpc CheckBatch (CheckBatchRequest) returns (CheckBatchResponse) {}
+}
+
+message CheckDocumentRequest {
+  string document_id = 1;
+  bytes file_content = 2;           // бинарное содержимое файла (PDF, DOCX и т.д.)
+  string file_name = 3;
+  string file_type = 4;             // "pdf", "docx", "txt"
+  repeated string gost_versions = 5; // например ["GOST_R_7_0_97", "GOST_R_34_10"]
+  map<string, string> metadata = 6;  // дополнительные данные (пользователь, дата и т.д.)
+}
+
+message CheckDocumentResponse {
+  bool success = 1;
+  repeated Mistake mistakes = 2;
+  string summary_report = 3;
+  int32 processing_time_ms = 4;
+  string status = 5;                // "compliant", "has_errors", "warning"
+}
+
+message Mistake {
+  string code = 1;
+  string description = 2;
+  string location = 3;              // страница, раздел, строка и т.д.
+  string severity = 4;              // "error", "warning", "info"
+  string gost_reference = 5;        // ссылка на пункт ГОСТ
+}
+
+message CheckBatchRequest {
+  repeated CheckDocumentRequest documents = 1;
+}
+
+message CheckBatchResponse {
+  repeated CheckDocumentResponse results = 1;
+}

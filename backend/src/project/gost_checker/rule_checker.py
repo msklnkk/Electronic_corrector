@@ -1,7 +1,6 @@
+# backend/src/project/gost_checker/rule_checker.py
 import json
-import re
-import os
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
@@ -33,7 +32,7 @@ class ValidationResult:
     suggestion: Optional[str] = None
     
     def to_dict(self) -> Dict:
-        """Конвертирует результат в словарь"""
+        # Конвертирует результат в словарь
         result = asdict(self)
         result['severity'] = result['severity'].value
         return result
@@ -58,7 +57,7 @@ class GOSTRuleChecker:
         self.rules = {}
         self._load_rules()
     def _load_rules(self):
-        """Загружает все правила из файла"""
+        # Загружает все правила из файла
         print("Загружаю правила...")
         
         # Загружаем структурные правила
@@ -76,7 +75,7 @@ class GOSTRuleChecker:
         print(f"Всего загружено правил: {len(self.rules)}")
     
     def check_document_structure(self, document_elements: List[str]) -> List[ValidationResult]:
-        """Проверяет структуру документа"""
+        # Проверяет структуру документа
         results = []
         
         # Проверка обязательных элементов (5.1)
@@ -95,7 +94,7 @@ class GOSTRuleChecker:
         return results
     
     def check_formatting(self, document_format: Dict) -> List[ValidationResult]:
-        """Проверяет форматирование документа"""
+        # Проверяет форматирование документа
         results = []
         
         # Проверка шрифта (6.1.1_font)
@@ -178,7 +177,7 @@ class GOSTRuleChecker:
     
     def _check_equals(self, rule_id: str, rule_title: str, expected: Any, 
                      actual: Any, severity: str) -> ValidationResult:
-        """Проверка на равенство"""
+        # Проверка на равенство
         is_passed = expected == actual
         
         if is_passed:
@@ -199,7 +198,7 @@ class GOSTRuleChecker:
     def _check_list_presence(self, rule_id: str, rule_title: str, 
                            expected_list: List[str], actual_list: List[str],
                            severity: str) -> ValidationResult:
-        """Проверка наличия элементов списка"""
+        # Проверка наличия элементов списка
         missing_elements = []
         
         for expected in expected_list:
@@ -231,7 +230,7 @@ class GOSTRuleChecker:
     
     def _check_object_equals(self, rule_id: str, rule_title: str, 
                            expected: Dict, actual: Dict, severity: str) -> ValidationResult:
-        """Проверка объектов на равенство"""
+        # Проверка объектов на равенство
         mismatches = []
         
         for key, expected_value in expected.items():
@@ -260,7 +259,7 @@ class GOSTRuleChecker:
     
     def _check_object_contains(self, rule_id: str, rule_title: str,
                              expected: Dict, actual: Dict, severity: str) -> ValidationResult:
-        """Проверка, что объект содержит ожидаемые свойства"""
+        # Проверка, что объект содержит ожидаемые свойства
         missing_props = []
         
         for key, expected_value in expected.items():
@@ -288,7 +287,7 @@ class GOSTRuleChecker:
     
     def _check_range(self, rule_id: str, rule_title: str, 
                     min_value: float, max_value: float, actual: float, severity: str) -> ValidationResult:
-        """Проверка значения в диапазоне"""
+        # Проверка значения в диапазоне
         is_passed = min_value <= actual <= max_value
         
         if is_passed:
@@ -311,7 +310,7 @@ class GOSTRuleChecker:
     
     def _check_min_value(self, rule_id: str, rule_title: str, 
                         min_value: float, actual: float, severity: str) -> ValidationResult:
-        """Проверка минимального значения"""
+        # Проверка минимального значения
         is_passed = actual >= min_value
         
         if is_passed:
@@ -331,7 +330,7 @@ class GOSTRuleChecker:
     
     def _check_max_value(self, rule_id: str, rule_title: str, 
                         max_value: float, actual: float, severity: str) -> ValidationResult:
-        """Проверка максимального значения"""
+        # Проверка максимального значения
         is_passed = actual <= max_value
         
         if is_passed:
@@ -351,7 +350,7 @@ class GOSTRuleChecker:
     
     def _check_contains(self, rule_id: str, rule_title: str, 
                        expected: str, actual: str, severity: str) -> ValidationResult:
-        """Проверка наличия подстроки"""
+        # Проверка наличия подстроки
         is_passed = expected.lower() in actual.lower()
         
         if is_passed:
@@ -370,7 +369,7 @@ class GOSTRuleChecker:
         )
     
     def check_introduction(self, introduction_text: str) -> ValidationResult:
-        """Проверка содержания введения"""
+        # Проверка содержания введения
         rule = self.rules.get('5.6_introduction')
         if not rule:
             return None
@@ -420,7 +419,7 @@ class GOSTRuleChecker:
         )
     
     def check_all_rules(self, document_data: Dict) -> List[ValidationResult]:
-        """Проверяет документ по всем правилам"""
+        # Проверяет документ по всем правилам
         results = []
         
         # Проверяем структуру
@@ -439,11 +438,11 @@ class GOSTRuleChecker:
         return results
     
     def get_all_rules(self) -> Dict:
-        """Возвращает все правила"""
+        # Возвращает все правила
         return self.rules
     
     def get_rule_by_section(self, section: str) -> Dict:
-        """Возвращает правила по номеру раздела"""
+        # Возвращает правила по номеру раздела
         matching_rules = {}
         for rule_id, rule in self.rules.items():
             if rule['section'] == section:
@@ -452,11 +451,11 @@ class GOSTRuleChecker:
         return matching_rules
     
     def get_rule_by_id(self, rule_id: str) -> Dict:
-        """Возвращает правило по ID"""
+        # Возвращает правило по ID
         return self.rules.get(rule_id)
     
     def export_rules_for_frontend(self) -> List[Dict]:
-        """Экспортирует правила для фронтенда"""
+        # Экспортирует правила для фронтенда
         frontend_rules = []
         
         for rule_id, rule in self.rules.items():
@@ -475,7 +474,7 @@ class GOSTRuleChecker:
         return frontend_rules
     
     def get_rules_summary(self) -> Dict:
-        """Возвращает статистику по правилам"""
+        # Возвращает статистику по правилам
         total = len(self.rules)
         structure_count = sum(1 for rule in self.rules.values() if rule['rule_type'] == 'structure')
         formatting_count = sum(1 for rule in self.rules.values() if rule['rule_type'] == 'formatting')
@@ -493,7 +492,7 @@ class GOSTRuleChecker:
         }
     
     def _get_rules_by_section(self) -> Dict:
-        """Группирует правила по разделам"""
+        # Группирует правила по разделам
         sections = {}
         for rule_id, rule in self.rules.items():
             section = rule['section']

@@ -11,7 +11,6 @@ import {
   useTheme,
 } from "@mui/material";
 import { useSnackbar } from "notistack";
-import { GlobalLoader } from "components";
 import { API_ROUTES } from "../config/constants";  
 import { StyledCard, GradientButton } from "components";
 
@@ -51,6 +50,18 @@ const CheckResult: React.FC = () => {
 
       console.log("CheckResult: Получен ответ от бэкенда:", data);
 
+      // Если вдруг попали сюда напрямую по URL и проверка еще идет
+      const isProcessing =
+        data?.status === "Анализируется" ||
+        data?.status === "analyzing" ||
+        (data?.total_checks === 0 && data?.passed_checks === 0 && !data?.errors?.length);
+
+      if (isProcessing) {
+        console.log("CheckResult: Проверка еще идет - повтор через 3 сек");
+        setTimeout(fetchResult, 3000);
+        return; // не убираем loading пока не готово
+      }
+
       setResult(data);
 
       // Получаем информацию о документе для времени загрузки
@@ -66,11 +77,6 @@ const CheckResult: React.FC = () => {
 
       setLoading(false);
 
-      // Повторяем запрос, если проверка ещё идёт
-      if (data?.status === "Анализируется" || data?.status === "processing" || data?.score === "0.0" || !data?.score) {
-        console.log("CheckResult: Проверка в процессе — повтор через 3 сек");
-        setTimeout(fetchResult, 3000);
-      }
     } catch (err: any) {
       console.error("CheckResult: Ошибка при получении результата:", err.response || err);
       const errorMsg = err.response?.data?.detail || "Не удалось загрузить результат";
@@ -162,10 +168,24 @@ const CheckResult: React.FC = () => {
 
   if (loading) {
     return (
-      <GlobalLoader 
-        open={loading} 
-        message="Проверка документа... Это может занять несколько секунд" 
-      />
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 3,
+        }}
+      >
+        <CircularProgress size={80} thickness={4} sx={{ color: "primary.main" }} />
+        <Typography variant="h5" fontWeight={700}>
+          Загружаем результат...
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.5 }}>
+          Пожалуйста, подождите
+        </Typography>
+      </Box>
     );
   }
 
@@ -204,10 +224,9 @@ const CheckResult: React.FC = () => {
       ? Number(rawScore.replace(/^0+/, "")) || 0
       : Number(rawScore);
 
-  const normalizedScore = Math.min(Math.max(score, 0), 10);
-  const percent = Math.round((normalizedScore / 10) * 100);
-
-  const statusText = normalizedScore >= 8 ? "Хорошо" : "Требует внимания";
+  const percent = Math.min(Math.max(score, 0), 100);
+  const normalizedScore = percent / 10;  // для отображения X/10
+  const statusText = percent >= 80 ? "Хорошо" : percent >= 50 ? "Удовлетворительно" : "Требует внимания";
 
   const backendErrors: string[] = Array.isArray(result.errors) ? result.errors : [];
   const backendWarnings: string[] = Array.isArray(result.warnings) ? result.warnings : [];

@@ -1,3 +1,4 @@
+# backend/src/project/api/depends.py
 from typing import Annotated
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status

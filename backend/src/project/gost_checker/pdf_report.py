@@ -1,12 +1,12 @@
+# backend/src/project/gost_checker/pdf_report.py
 from typing import Dict
-import json
 
 class PDFReportGenerator:
-    """Упрощенный генератор отчетов для интеграции с существующей системой"""
+    # Упрощенный генератор отчетов для интеграции с существующей системой
     
     @staticmethod
     def generate_report_data(json_report: Dict) -> Dict:
-        """Подготовка данных для отчета (вместо генерации PDF)"""
+        # Подготовка данных для отчета (вместо генерации PDF)
         summary = json_report.get('summary', {})
         violations = json_report.get('violations', [])
         
@@ -22,7 +22,7 @@ class PDFReportGenerator:
     
     @staticmethod
     def _generate_recommendations(violations: list) -> list:
-        """Генерация рекомендаций на основе найденных нарушений"""
+        # Генерация рекомендаций на основе найденных нарушений
         recommendations = []
         
         for violation in violations:

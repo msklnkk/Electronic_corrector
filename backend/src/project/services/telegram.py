@@ -1,3 +1,4 @@
+# backend/src/project/services/telegram.py
 import requests
 from asyncio import get_running_loop
 
