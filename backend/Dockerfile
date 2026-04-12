@@ -33,6 +33,8 @@ COPY migration /app/migration
 RUN poetry config virtualenvs.create false && \
     poetry install --only main --no-root --no-interaction --no-ansi
 
+RUN pip install aiokafka==0.10.0
+
 COPY ./src /app/src
 COPY ./grpc_checker /app/grpc_checker
 

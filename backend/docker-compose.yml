@@ -19,10 +19,44 @@ services:
       timeout: 5s
       retries: 5
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - app_network
+    ports:
+      - '127.0.0.1:2181:2181'
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    restart: always
+    depends_on:
+      - zookeeper
+    networks:
+      - app_network
+    ports:
+      - '127.0.0.1:29092:29092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
   app:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     image: fastapi_app
     build:
       context: .
@@ -38,9 +72,15 @@ services:
     entrypoint: sh -c "./src/start.sh"
     environment:
       - GRPC_CHECKER_HOST=grpc_checker
-      - PYTHONPATH=/app/src:/app  # ✅ добавлено: /app/src для project, /app для grpc_checker
+      - PYTHONPATH=/app/src:/app
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TASK_TOPIC=gost-rules-extract
+      - KAFKA_STATUS_TOPIC=document-status-events
 
   grpc_checker:
+    depends_on:
+      kafka:
+        condition: service_started
     build:
       context: .
       dockerfile: grpc_checker/Dockerfile
@@ -48,14 +88,18 @@ services:
     restart: always
     volumes:
       - ./grpc_checker/rules:/app/rules
-      - ./src:/app/src                    # ✅ добавлено: монтируем src чтобы видеть project
+      - ./src:/app/src
     networks:
       - app_network
     ports:
       - '127.0.0.1:50051:50051'
     environment:
       - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app/grpc_checker:/app/src  # ✅ добавлено: пути к обоим модулям
+      - PYTHONPATH=/app/grpc_checker:/app/src
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TASK_TOPIC=gost-rules-extract
+      - KAFKA_STATUS_TOPIC=document-status-events
+      - KAFKA_GROUP_ID=bert-rules-worker-group
 
 networks:
   app_network:

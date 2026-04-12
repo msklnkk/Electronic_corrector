@@ -1,5 +1,6 @@
 # backend/src/project/api/document_routes.py
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from pathlib import Path
 from decimal import Decimal
 from datetime import datetime
@@ -10,7 +11,6 @@ from project.api.depends import (
     get_current_user,
     document_repo,
     check_for_admin_access,
-    # require_tg_subscription,  # ← ОТКЛЮЧАЕМ ПРОВЕРКУ ПОДПИСКИ
 )
 from project.schemas.documents import (
     DocumentCreate,
@@ -22,9 +22,9 @@ from project.schemas.documents import (
 from project.core.exceptions import DocumentNotFound
 from project.core.config import settings
 
-# УБИРАЕМ require_tg_subscription из зависимостей роутера
-# Было: dependencies=[Depends(require_tg_subscription)]
-document_routes = APIRouter()  # теперь без проверки подписки
+from project.infrastructure.kafka.publishers import publish_status, publish_report_task
+
+document_routes = APIRouter()
 
 
 @document_routes.get(
@@ -180,18 +180,19 @@ async def delete_document(
     status_code=status.HTTP_201_CREATED
 )
 async def upload_document_file(
+        request: Request,
         file: UploadFile = File(...),
         doc_type: str = Form("document"),
         is_example: bool = Form(False),
         current_user=Depends(get_current_user)
 ) -> FileUploadResponse:
-    # Загрузка документа через проводник
     try:
-        print(f"=== НАЧАЛО ЗАГРУЗКИ ===")
+        kafka_producer = getattr(request.app.state, "kafka_producer", None)
+
+        print("=== НАЧАЛО ЗАГРУЗКИ ===")
         print(f"Файл: {file.filename}")
         print(f"Пользователь: {current_user.user_id}")
 
-        # Проверяем тип файла
         file_extension = Path(file.filename).suffix.lower()
         allowed_types = [".pdf", ".doc", ".docx", ".txt"]
 
@@ -201,17 +202,14 @@ async def upload_document_file(
                 detail=f"Недопустимый тип файла. Разрешены: {', '.join(allowed_types)}"
             )
 
-        # Создаем директорию если нет
         upload_dir = Path("uploads")
         upload_dir.mkdir(exist_ok=True)
 
-        # Генерируем уникальное имя файла
         import uuid
         import time
         unique_filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{file.filename}"
         file_path = upload_dir / unique_filename
 
-        # Сохраняем файл
         content = await file.read()
         file_size = len(content)
 
@@ -220,7 +218,6 @@ async def upload_document_file(
 
         print(f"Файл сохранен: {file_path}")
 
-        # Создаем запись в БД
         document_data = DocumentCreate(
             user_id=current_user.user_id,
             filename=unique_filename,
@@ -231,14 +228,21 @@ async def upload_document_file(
             size=Decimal(file_size),
             status_id=1,
             report_pdf_path="",
-            score=Decimal('0.0'),
-            analysis_time=Decimal('0.0')
+            score=Decimal("0.0"),
+            analysis_time=Decimal("0.0")
         )
 
         async with database.session() as session:
             new_document = await document_repo.create_document(session, document_data)
 
         print(f"Документ создан в БД: {new_document.document_id}")
+
+        await publish_status(
+            kafka_producer=kafka_producer,
+            document_id=new_document.document_id,
+            status="uploaded",
+            message="Документ успешно загружен",
+        )
 
         return FileUploadResponse(
             filename=file.filename,
@@ -254,7 +258,7 @@ async def upload_document_file(
         raise
     except Exception as e:
         print(f"Ошибка при загрузке: {str(e)}")
-        if 'file_path' in locals() and file_path.exists():
+        if "file_path" in locals() and file_path.exists():
             file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -263,26 +267,60 @@ async def upload_document_file(
     finally:
         await file.close()
 
+
 @document_routes.post("/{document_id}/check-gost")
 async def check_document_gost(
     document_id: int,
+    request: Request,
     current_user=Depends(get_current_user),
 ):
-    # Запустить проверку ГОСТ для документа
     async with database.session() as session:
-        # Получаем документ асинхронно через репозиторий
+        kafka_producer = getattr(request.app.state, "kafka_producer", None)
+
         document = await document_repo.get_document_by_id(session, document_id)
-        
+
         if not document:
             raise HTTPException(404, "Документ не найден")
-        
-        # Проверяем права доступа
+
         if not current_user.is_admin and document.user_id != current_user.user_id:
             raise HTTPException(403, "Нет доступа к документу")
-        
-        # Создаем сервис и запускаем проверку
-        # Предполагается, что GostCheckService принимает сессию в конструкторе
+
         service = GostCheckService(session)
-        check_id = await service.start_gost_check(document_id)
-        
-        return {"message": "Проверка ГОСТ запущена", "check_id": check_id}
+
+        try:
+            await publish_status(
+                kafka_producer=kafka_producer,
+                document_id=document_id,
+                status="processing",
+                message="Проверка ГОСТ началась",
+            )
+
+            check_id = await service.start_gost_check(document_id)
+
+            await publish_status(
+                kafka_producer=kafka_producer,
+                document_id=document_id,
+                status="done",
+                message="Проверка ГОСТ завершена",
+            )
+
+            await publish_report_task(
+                kafka_producer=kafka_producer,
+                document_id=document_id,
+                report_type="json",
+            )
+
+            return {"message": "Проверка ГОСТ запущена", "check_id": check_id}
+
+        except Exception as e:
+            await publish_status(
+                kafka_producer=kafka_producer,
+                document_id=document_id,
+                status="failed",
+                message="Ошибка при проверке ГОСТ",
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при запуске проверки ГОСТ: {str(e)}"
+            )

@@ -1,4 +1,5 @@
 # backend/src/main.py
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -21,23 +22,22 @@ from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
 from project.core.config import settings
 
-# Импорт gRPC клиента
 from project.grpc.client import GostCheckerClient
+from project.infrastructure.kafka.config import get_kafka_bootstrap_servers
+from project.infrastructure.kafka.producer import KafkaProducerService
 
 logger = logging.getLogger(__name__)
 
-# Глобальный gRPC клиент
 grpc_client: Optional[GostCheckerClient] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Lifespan события — выполняется при старте и остановке приложения
     global grpc_client
 
     logger.info("Запуск FastAPI приложения...")
 
-    # Инициализация gRPC клиента
+    # gRPC
     try:
         grpc_client = GostCheckerClient(target="grpc_checker:50051")
         await grpc_client.connect()
@@ -46,13 +46,30 @@ async def lifespan(app: FastAPI):
         logger.error(f"Не удалось подключиться к gRPC сервису: {e}")
         grpc_client = None
 
-    yield  # Здесь приложение работает
+    # Kafka
+    try:
+        kafka_producer = KafkaProducerService(
+            bootstrap_servers=get_kafka_bootstrap_servers()
+        )
+        await kafka_producer.start()
+        app.state.kafka_producer = kafka_producer
+        logger.info("Kafka producer успешно запущен")
+    except Exception as e:
+        logger.error(f"Не удалось запустить Kafka producer: {e}")
+        app.state.kafka_producer = None
 
-    # Корректное завершение
+    yield
+
     logger.info("Завершение FastAPI приложения...")
+
     if grpc_client:
         await grpc_client.close()
         logger.info("gRPC клиент закрыт")
+
+    kafka_producer = getattr(app.state, "kafka_producer", None)
+    if kafka_producer:
+        await kafka_producer.stop()
+        logger.info("Kafka producer закрыт")
 
 
 def create_app() -> FastAPI:
@@ -71,7 +88,6 @@ def create_app() -> FastAPI:
         **app_options
     )
 
-    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000"],
@@ -80,7 +96,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Роутеры
     app.include_router(auth_routes, tags=["Auth"])
     app.include_router(user_routes, tags=["User"])
     app.include_router(document_routes, tags=["Documents"])
@@ -99,7 +114,6 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-# Для запуска через uvicorn
 async def run() -> None:
     config = uvicorn.Config(
         app="main:app",
