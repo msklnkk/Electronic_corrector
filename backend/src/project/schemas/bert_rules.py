@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ExtractedRule(BaseModel):
@@ -8,7 +8,7 @@ class ExtractedRule(BaseModel):
     text: str
     page: int
     category: str
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float
 
 
 class BertRulesResponse(BaseModel):
