@@ -17,7 +17,6 @@ from project.api.status_routes import status_routes
 from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
-from project.api.perk_routes import router as perk_router
 from project.api.bert_rules_routes import router as bert_rules_router
 
 logger = logging.getLogger(__name__)
@@ -34,14 +33,14 @@ def create_app() -> FastAPI:
         app_options["debug"] = True
 
     app = FastAPI(root_path=settings.ROOT_PATH, **app_options)
+
     app.add_middleware(
-        CORSMiddleware,  # type: ignore
+        CORSMiddleware,
         allow_origins=settings.ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
 
     app.include_router(auth_routes, tags=["Auth"])
     app.include_router(user_routes, tags=["User"])
@@ -54,22 +53,12 @@ def create_app() -> FastAPI:
     app.include_router(mistake_type_routes, tags=["Mistake Type"])
     app.include_router(mistake_routes, tags=["Mistake"])
     app.include_router(gost_check_router, tags=["Gost"])
-    app.include_router(perk_router, prefix="/ai", tags=["AI"])
-    app.include_router(bert_rules_router, prefix="/ai")
+    app.include_router(bert_rules_router, prefix="/ai", tags=["AI"])
 
     return app
 
 
 app = create_app()
-
-# Настройка CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # URL фронтенда
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 async def run() -> None:
