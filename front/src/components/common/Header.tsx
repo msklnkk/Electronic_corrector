@@ -131,7 +131,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
           </Box>
 
           <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: "auto" }}>
-            <IconButton color="inherit" onClick={onThemeToggle}>
+            <IconButton color="inherit" onClick={onThemeToggle} aria-label="toggle theme">
               {mode === "dark" ? <LightMode /> : <DarkMode />}
             </IconButton>
 
