@@ -1,7 +1,6 @@
 // tests/unit/components/auth/ProtectedRoute.test.tsx
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
 import { ProtectedRoute } from '../../../../src/components/auth/ProtectedRoute';
 import { useAuth } from '../../../../src/hooks/useAuth';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -66,7 +65,7 @@ describe('ProtectedRoute', () => {
     });
 
     renderProtectedRoute();
-    
+
     expect(screen.getByText(/загрузка/i)).toBeInTheDocument();
   });
 

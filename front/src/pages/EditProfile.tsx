@@ -104,22 +104,15 @@ const EditProfilePage: React.FC = () => {
 
     try {
       const payload = {
-        first_name: fields.first_name.trim(),
-        surname_name: fields.surname_name.trim(),
-        patronomic_name: fields.patronomic_name.trim(),
-        username: fields.username.trim(),
-        email: fields.email.trim(),
-        password: fields.password,
-        role: user.role ?? "user",
-        is_admin: (user as any).is_admin ?? false,
-        tg_username: (user as any).tg_username ?? null,
-        telegram_id: (user as any).telegram_id ?? null,
-        is_tg_subscribed: (user as any).is_tg_subscribed ?? false,
-        theme: (user as any).theme ?? "light",
-        is_push_enabled: (user as any).is_push_enabled ?? false,
-      };
+      first_name: fields.first_name.trim(),
+      surname_name: fields.surname_name.trim(),
+      patronomic_name: fields.patronomic_name.trim(),
+      username: fields.username.trim(),
+      email: fields.email.trim(),
+      password: fields.password,
+  };
 
-      await api.put(API_ROUTES.USERS.UPDATE(user.user_id), payload);
+      await api.put("/update_me", payload);
       navigate(ROUTES.PROFILE);
     } catch (err: any) {
       console.error("Ошибка обновления профиля:", err?.response?.data || err);

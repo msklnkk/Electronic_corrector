@@ -25,8 +25,6 @@ import {
   Logout,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useTheme } from "@mui/material/styles";
-
 import { LoginForm } from "components/auth";
 import { AuthService } from "services";
 import { ROUTES } from "config/constants";

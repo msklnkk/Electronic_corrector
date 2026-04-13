@@ -1,5 +1,4 @@
 // tests/unit/components/common/Footer.test.tsx
-import React from 'react';
 import { render, screen } from '@testing-library/react';
 import Footer from '../../../../src/components/common/Footer';
 
