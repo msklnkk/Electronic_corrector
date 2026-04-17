@@ -20,6 +20,7 @@ from project.api.status_routes import status_routes
 from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
+from project.api.rule_extract_routes import router as rule_extract_router
 from project.core.config import settings
 
 from project.grpc.client import GostCheckerClient
@@ -37,7 +38,6 @@ async def lifespan(app: FastAPI):
 
     logger.info("Запуск FastAPI приложения...")
 
-    # gRPC
     try:
         grpc_client = GostCheckerClient(target="grpc_checker:50051")
         await grpc_client.connect()
@@ -46,7 +46,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Не удалось подключиться к gRPC сервису: {e}")
         grpc_client = None
 
-    # Kafka
     try:
         kafka_producer = KafkaProducerService(
             bootstrap_servers=get_kafka_bootstrap_servers()
@@ -74,11 +73,13 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app_options = {}
+
     if settings.ENV.lower() == "prod":
         app_options = {
             "docs_url": None,
             "redoc_url": None,
         }
+
     if settings.LOG_LEVEL in ["DEBUG", "INFO"]:
         app_options["debug"] = True
 
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(mistake_type_routes, tags=["Mistake Type"])
     app.include_router(mistake_routes, tags=["Mistake"])
     app.include_router(gost_check_router, tags=["Gost"])
+    app.include_router(rule_extract_router, tags=["Rules"])
 
     return app
 
