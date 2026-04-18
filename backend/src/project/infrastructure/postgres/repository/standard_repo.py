@@ -32,6 +32,16 @@ class StandardRepository:
         standards = await session.scalars(query)
         return [StandardSchema.model_validate(obj=std) for std in standards.all()]
 
+    async def list_state_standards(self, session: AsyncSession) -> list[StandardSchema]:
+        # Государственные стандарты для выбора при проверке ГОСТ.
+        query = (
+            select(self._collection)
+            .where(self._collection.is_custom.is_(False))
+            .order_by(self._collection.standart_id)
+        )
+        standards = await session.scalars(query)
+        return [StandardSchema.model_validate(obj=std) for std in standards.all()]
+
     async def get_standard_by_name_version(
         self,
         session: AsyncSession,

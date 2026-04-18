@@ -1,5 +1,5 @@
 // src/pages/CheckDocument.tsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api"; 
 import {
@@ -19,6 +19,10 @@ import {
   Box,
   CircularProgress, 
   Backdrop,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   UploadFile,
@@ -29,6 +33,8 @@ import {
 } from "@mui/icons-material";
 import { API_ROUTES, FILE_CONFIG, CHECK_TYPES } from "../config/constants";
 import { Footer } from "components";
+
+type CheckTypeValue = (typeof CHECK_TYPES)[keyof typeof CHECK_TYPES];
 
 // Компонент окна загрузки
 const AnalyzingOverlay: React.FC<{ open: boolean; filename?: string }> = ({ open, filename }) => (
@@ -61,16 +67,37 @@ const AnalyzingOverlay: React.FC<{ open: boolean; filename?: string }> = ({ open
 const CheckDocumentPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const [selectedType, setSelectedType] = useState<keyof typeof CHECK_TYPES>("GOST");
+  const [selectedType, setSelectedType] = useState<CheckTypeValue>(CHECK_TYPES.GOST);
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [gostStandards, setGostStandards] = useState<
+    { standart_id: number; name: string; description?: string | null }[]
+  >([]);
+  const [selectedStandartId, setSelectedStandartId] = useState<number | "">("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(API_ROUTES.DOCUMENTS.GOST_STANDARDS);
+        if (!cancelled && Array.isArray(res.data) && res.data.length > 0) {
+          setGostStandards(res.data);
+        }
+      } catch (e) {
+        console.warn("Не удалось загрузить список ГОСТ", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedType(event.target.value as keyof typeof CHECK_TYPES);
+    setSelectedType(event.target.value as CheckTypeValue);
   };
 
   const handleChooseFile = () => {
@@ -125,6 +152,17 @@ const CheckDocumentPage: React.FC = () => {
       return;
     }
 
+    if (selectedType === CHECK_TYPES.GOST) {
+      if (gostStandards.length === 0) {
+        alert("Список ГОСТ пуст. Обновите страницу позже.");
+        return;
+      }
+      if (selectedStandartId === "") {
+        alert("Выберите ГОСТ для проверки.");
+        return;
+      }
+    }
+
     setUploading(true);
 
     try {
@@ -138,9 +176,11 @@ const CheckDocumentPage: React.FC = () => {
       console.log("✅ Документ загружен, ID:", document_id);
 
       console.log("🔍 Запускаю проверку ГОСТ...");
-      const checkRes = await api.post(API_ROUTES.DOCUMENTS.CHECK_START, {
-        document_id,
-      });
+      const checkPayload: { document_id: number; standart_id?: number } = { document_id };
+      if (selectedType === CHECK_TYPES.GOST && selectedStandartId !== "") {
+        checkPayload.standart_id = selectedStandartId;
+      }
+      const checkRes = await api.post(API_ROUTES.DOCUMENTS.CHECK_START, checkPayload);
 
       console.log("📊 Ответ от /gost-check/start:", checkRes.data);
 
@@ -271,6 +311,45 @@ const CheckDocumentPage: React.FC = () => {
                   label="Пользовательский шаблон — настраиваемые правила"
                 />
               </RadioGroup>
+
+              {selectedType === CHECK_TYPES.GOST && gostStandards.length > 0 && (
+                <FormControl fullWidth sx={{ mt: 2 }} size="small">
+                  <InputLabel id="gost-standard-label" shrink>
+                    ГОСТ для проверки
+                  </InputLabel>
+                  <Select<number | "">
+                    labelId="gost-standard-label"
+                    label="ГОСТ для проверки"
+                    notched
+                    displayEmpty
+                    value={selectedStandartId}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedStandartId(v === "" ? "" : Number(v));
+                    }}
+                    renderValue={() => {
+                      if (selectedStandartId === "") {
+                        return (
+                          <Box component="span" sx={{ color: "text.secondary" }}>
+                            Выберите ГОСТ
+                          </Box>
+                        );
+                      }
+                      const item = gostStandards.find((s) => s.standart_id === selectedStandartId);
+                      return item?.name ?? "";
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Выберите ГОСТ</em>
+                    </MenuItem>
+                    {gostStandards.map((s) => (
+                      <MenuItem key={s.standart_id} value={s.standart_id}>
+                        {s.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             </Paper>
 
             <Box textAlign="center">
@@ -278,7 +357,12 @@ const CheckDocumentPage: React.FC = () => {
                 variant="contained"
                 color="primary"
                 size="large"
-                disabled={uploading || !file}
+                disabled={
+                  uploading ||
+                  !file ||
+                  (selectedType === CHECK_TYPES.GOST &&
+                    (gostStandards.length === 0 || selectedStandartId === ""))
+                }
                 onClick={handleUpload}
                 sx={{ borderRadius: "12px", px: 5, py: 1.5, fontWeight: 600 }}
               >

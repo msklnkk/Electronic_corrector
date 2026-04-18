@@ -38,10 +38,11 @@ class ValidationResult:
         return result
 
 class GOSTRuleChecker:
-    def __init__(self, rules_file: str = None):
-        # Если путь не передан, ищем файл рядом с rule_checker.py
-        if rules_file is None:
-            rules_file = Path(__file__).parent / "manual_rules.json"
+    def __init__(self, rules_file: str | Path | None = None):
+        if not rules_file:
+            raise ValueError(
+                "Не выбран ГОСТ для проверки: требуется передать путь к файлу правил (rules_file)."
+            )
 
         # Проверка существования файла
         if not Path(rules_file).exists():

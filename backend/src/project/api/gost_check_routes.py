@@ -4,13 +4,36 @@ from decimal import Decimal
 
 from project.infrastructure.postgres.database import database
 from project.infrastructure.postgres.models import Users, Documents, Status
-from project.schemas.gost_check import GostCheckRequest, GostCheckResponse, GostCheckResult, GostCheckStatus
+from project.schemas.gost_check import (
+    GostCheckRequest,
+    GostCheckResponse,
+    GostCheckResult,
+    GostCheckStatus,
+    GostStandardOption,
+)
 from project.core.gost_service import GostCheckService
-from project.api.depends import get_current_user
+from project.api.depends import get_current_user, standard_repo
 
 from project.infrastructure.kafka.publishers import publish_status, publish_report_task
 
 router = APIRouter(prefix="/gost-check", tags=["GOST Check"])
+
+
+@router.get("/standards", response_model=list[GostStandardOption])
+async def list_gost_standards(
+    current_user: Users = Depends(get_current_user),
+):
+    async with database.session() as session:
+        standards = await standard_repo.list_state_standards(session=session)
+    return [
+        GostStandardOption(
+            standart_id=s.standart_id,
+            name=s.name,
+            version=s.version,
+            description=s.description,
+        )
+        for s in standards
+    ]
 
 
 @router.post("/start", response_model=GostCheckResponse)
@@ -22,6 +45,11 @@ async def start_gost_check(
 ):
     async with database.session() as session:
         kafka_producer = getattr(request.app.state, "kafka_producer", None)
+        if request_data.standart_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Требуется выбрать ГОСТ перед запуском проверки",
+            )
 
         from sqlalchemy import select
         stmt = select(Documents).where(
@@ -47,7 +75,10 @@ async def start_gost_check(
                 message="Проверка документа началась",
             )
 
-            check_id = await service.start_gost_check(request_data.document_id)
+            check_id = await service.start_gost_check(
+                request_data.document_id,
+                standart_id=request_data.standart_id,
+            )
 
             await publish_status(
                 kafka_producer=kafka_producer,
@@ -62,6 +93,11 @@ async def start_gost_check(
                 report_type="json",
             )
 
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
         except Exception as e:
             await publish_status(
                 kafka_producer=kafka_producer,

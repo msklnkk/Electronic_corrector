@@ -29,6 +29,7 @@ python-docx = "^1.2.0"
 grpcio = "^1.70.0"
 grpcio-tools = { version = "^1.70.0", extras = ["grpcio"] }
 protobuf = ">=6.31.1,<7"
+aiokafka = "^0.13.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"

@@ -4,8 +4,18 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from decimal import Decimal
 
+class GostStandardOption(BaseModel):
+    # Элемент списка ГОСТ для UI (без пути к файлу правил).
+
+    standart_id: int
+    name: str
+    version: str | None = None
+    description: str | None = None
+
+
 class GostCheckRequest(BaseModel):
     document_id: int
+    standart_id: int | None = None
 
 class GostCheckResponse(BaseModel):
     check_id: int

@@ -26,7 +26,8 @@ class GostCheckerClient:
         self,
         file_content: bytes,
         file_name: str,
-        document_id: Optional[str] = None
+        document_id: Optional[str] = None,
+        rules_file: Optional[str] = None,
     ) -> gost_checker_pb2.CheckDocumentResponse:
         # Отправляет документ на проверку через gRPC
         await self.connect()
@@ -34,8 +35,10 @@ class GostCheckerClient:
         request = gost_checker_pb2.CheckDocumentRequest(
             document_id=document_id or "unknown",
             file_content=file_content,
-            file_name=file_name
+            file_name=file_name,
         )
+        if rules_file:
+            request.metadata["rules_file"] = rules_file
 
         # Таймаут 60 секунд
         response = await self.stub.CheckDocument(request, timeout=60.0)

@@ -29,18 +29,31 @@ class SafeEncoder(json.JSONEncoder):
 class GostCheckerServicer(gost_checker_pb2_grpc.GostCheckerServiceServicer):
 
     def __init__(self):
-        # Загружаем чекер один раз при старте сервиса
-        rules_path = "rules/manual_rules.json"  # путь относительно grpc_checker
-        self.checker = GOSTDocumentChecker(rules_file=rules_path)
+        self._checker_cache: dict[str, GOSTDocumentChecker] = {}
         print("gRPC GostCheckerServicer инициализирован")
+
+    def _resolve_rules_path(self, request) -> str:
+        meta = dict(request.metadata) if request.metadata else {}
+        if meta.get("rules_file"):
+            return meta["rules_file"]
+        if request.gost_versions:
+            return request.gost_versions[0]
+        raise ValueError("Не выбран ГОСТ: путь к файлу правил не передан в gRPC metadata.rules_file")
+
+    def _get_checker(self, rules_path: str) -> GOSTDocumentChecker:
+        if rules_path not in self._checker_cache:
+            self._checker_cache[rules_path] = GOSTDocumentChecker(rules_file=rules_path)
+        return self._checker_cache[rules_path]
 
     async def CheckDocument(self, request, context):
         # Основной метод проверки документа через gRPC
         start_time = time.time()
 
         try:
+            rules_path = self._resolve_rules_path(request)
+            checker = self._get_checker(rules_path)
             # Вызываем чекер с байтами
-            report = await self.checker.check_document(
+            report = await checker.check_document(
                 file_content=request.file_content,
                 filename=request.file_name,
                 document_id=request.document_id or "unknown",
@@ -84,7 +97,7 @@ class GostCheckerServicer(gost_checker_pb2_grpc.GostCheckerServiceServicer):
             return gost_checker_pb2.CheckDocumentResponse(
                 success=False,
                 mistakes=[],
-                summary_report={"error": str(e)},
+                summary_report=json.dumps({"error": str(e)}, ensure_ascii=False),
                 processing_time_ms=int((time.time() - start_time) * 1000),
                 status="error"
             )

@@ -1,6 +1,6 @@
 # backend/src/project/api/document_routes.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request, Query
 from pathlib import Path
 from decimal import Decimal
 from datetime import datetime
@@ -272,10 +272,16 @@ async def upload_document_file(
 async def check_document_gost(
     document_id: int,
     request: Request,
+    standart_id: int | None = Query(None),
     current_user=Depends(get_current_user),
 ):
     async with database.session() as session:
         kafka_producer = getattr(request.app.state, "kafka_producer", None)
+        if standart_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Требуется выбрать ГОСТ перед запуском проверки",
+            )
 
         document = await document_repo.get_document_by_id(session, document_id)
 
@@ -295,7 +301,7 @@ async def check_document_gost(
                 message="Проверка ГОСТ началась",
             )
 
-            check_id = await service.start_gost_check(document_id)
+            check_id = await service.start_gost_check(document_id, standart_id=standart_id)
 
             await publish_status(
                 kafka_producer=kafka_producer,
@@ -312,6 +318,11 @@ async def check_document_gost(
 
             return {"message": "Проверка ГОСТ запущена", "check_id": check_id}
 
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
         except Exception as e:
             await publish_status(
                 kafka_producer=kafka_producer,

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from project.grpc.client import GostCheckerClient
 from project.infrastructure.postgres.repository.gost_check_repo import AsyncGostCheckRepository
-from project.infrastructure.postgres.models import Documents, Status
+from project.infrastructure.postgres.models import Check, Documents, Standart, Status
 
 
 class GostCheckService:
@@ -18,9 +18,9 @@ class GostCheckService:
         # Создаём клиент gRPC при инициализации сервиса
         self.grpc_client = GostCheckerClient(target="grpc_checker:50051")
 
-    async def start_gost_check(self, document_id: int) -> int:
+    async def start_gost_check(self, document_id: int, standart_id: int | None = None) -> int:
         # Запустить проверку ГОСТ для документа
-        check = await self.repository.create_gost_check(document_id)
+        check = await self.repository.create_gost_check(document_id, standart_id=standart_id)
         await self._update_document_status(document_id, "Анализируется")
         asyncio.create_task(self._process_gost_check(document_id, check.check_id))
         return check.check_id
@@ -37,6 +37,23 @@ class GostCheckService:
             if not document:
                 raise ValueError("Документ не найден")
 
+            check_row = await self.db.execute(select(Check).where(Check.check_id == check_id))
+            check = check_row.scalars().first()
+            if not check:
+                raise ValueError("Запись проверки не найдена")
+
+            stand_res = await self.db.execute(
+                select(Standart).where(Standart.standart_id == check.standart_id)
+            )
+            standart = stand_res.scalars().first()
+            if not standart:
+                raise ValueError("Выбранный ГОСТ не найден")
+            if not standart.rules_file:
+                raise ValueError(
+                    "Для выбранного ГОСТ не настроен файл правил. Выберите другой ГОСТ или обратитесь к администратору."
+                )
+            rules_file = standart.rules_file
+
             # Читаем файл в память
             with open(document.filepath, "rb") as f:
                 file_content = f.read()
@@ -45,7 +62,8 @@ class GostCheckService:
             grpc_response = await self.grpc_client.check_document(
                 file_content=file_content,
                 file_name=document.filename,
-                document_id=str(document_id)
+                document_id=str(document_id),
+                rules_file=rules_file,
             )
 
             if not grpc_response.success:

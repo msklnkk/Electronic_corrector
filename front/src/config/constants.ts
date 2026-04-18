@@ -14,6 +14,7 @@ export const API_ROUTES = {
     FULL_INFO: (documentId: number) => `/full-info/${documentId}`,
     MISTAKES: (documentId: number) => `/mistakes/${documentId}`,
     CHECK_START: '/gost-check/start',
+    GOST_STANDARDS: '/gost-check/standards',
     CHECK_STATUS: (documentId: number) => `/gost-check/status/${documentId}`,
     CHECK_RESULT: (checkId: string) => `/gost-check/result/${checkId}`,
   },

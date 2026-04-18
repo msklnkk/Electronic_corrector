@@ -12,9 +12,9 @@ class AsyncGostCheckRepository:
     def __init__(self, db: AsyncSession):
         self.db: AsyncSession = db
 
-    async def create_gost_check(self, document_id: int) -> Check:
+    async def create_gost_check(self, document_id: int, standart_id: int | None = None) -> Check:
         # Создать проверку ГОСТ для документа
-        gost_standard = await self.get_or_create_gost_standard()
+        gost_standard = await self.resolve_gost_standard(standart_id)
 
         check = Check(
             document_id=document_id,
@@ -28,21 +28,18 @@ class AsyncGostCheckRepository:
         await self.db.refresh(check)
         return check
 
-    async def get_or_create_gost_standard(self) -> Standart:
+    async def resolve_gost_standard(self, standart_id: int | None) -> Standart:
+        if standart_id is None:
+            raise ValueError("Требуется выбрать ГОСТ перед запуском проверки")
+
         result = await self.db.execute(
-            select(Standart).where(Standart.name == "ГОСТ для курсовых работ")
+            select(Standart).where(Standart.standart_id == standart_id)
         )
         standard = result.scalars().first()
         if not standard:
-            standard = Standart(
-                name="ГОСТ для курсовых работ",
-                version="1.0",
-                description="Автоматическая проверка курсовых работ на соответствие ГОСТ",
-                is_custom=False
-            )
-            self.db.add(standard)
-            await self.db.commit()
-            await self.db.refresh(standard)
+            raise ValueError("Указанный стандарт не найден")
+        if standard.is_custom:
+            raise ValueError("Для проверки по ГОСТ выберите государственный стандарт")
         return standard
 
     async def update_check_result(self, check_id: int, result: Dict[str, Any]) -> Check:

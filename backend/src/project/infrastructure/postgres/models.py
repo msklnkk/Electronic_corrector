@@ -75,6 +75,8 @@ class Standart(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     version: Mapped[str] = mapped_column(String, nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
+    # Путь к JSON с правилами относительно каталога grpc_checker
+    rules_file: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     checks: Mapped[list["Check"]] = relationship("Check", back_populates="standard", cascade="all, delete-orphan")

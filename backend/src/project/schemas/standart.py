@@ -7,6 +7,7 @@ class StandardBase(BaseModel):
     name: str
     version: str | None = None
     description: str | None = None
+    rules_file: str | None = None
     created_at: datetime | None = None
     is_custom: bool = False
 

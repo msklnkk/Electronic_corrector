@@ -37,8 +37,8 @@ COPY pyproject.toml poetry.lock* ./
 # Копируем папку grpc_checker
 COPY grpc_checker/ ./grpc_checker/
 
-# Копируем правила
-COPY grpc_checker/rules/manual_rules.json ./rules/manual_rules.json
+# Копируем все JSON-наборы правил
+COPY grpc_checker/rules/ ./rules/
 
 # Устанавливаем зависимости (используем общий pyproject.toml)
 RUN poetry config virtualenvs.create false && \
