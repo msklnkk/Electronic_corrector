@@ -1,5 +1,3 @@
-# backend/src/main.py
-
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -21,6 +19,7 @@ from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
 from project.api.gost_check_routes import router as gost_check_router
 from project.api.rule_extract_routes import router as rule_extract_router
+from project.api.semantic_check_routes import router as semantic_check_router
 from project.core.config import settings
 
 from project.grpc.client import GostCheckerClient
@@ -109,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(mistake_routes, tags=["Mistake"])
     app.include_router(gost_check_router, tags=["Gost"])
     app.include_router(rule_extract_router, tags=["Rules"])
+    app.include_router(semantic_check_router, tags=["Semantic Check"])
 
     return app
 

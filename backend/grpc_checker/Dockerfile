@@ -1,60 +1,45 @@
-# backend/grpc_checker/Dockerfile
-
-FROM python:3.11
+FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV POETRY_HOME="/opt/poetry"
+ENV POETRY_VERSION=1.8.3
+ENV PATH="/opt/poetry/bin:$PATH"
+ENV PYTHONPATH=/app/grpc_checker:/app/src
+ENV POETRY_REQUESTS_TIMEOUT=600
+ENV PIP_DEFAULT_TIMEOUT=600
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Используем тот же зеркальный репозиторий Yandex, что и в основном Dockerfile
-RUN echo "deb http://mirror.yandex.ru/debian bookworm main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb http://mirror.yandex.ru/debian bookworm-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb http://mirror.yandex.ru/debian-security bookworm-security main contrib non-free" >> /etc/apt/sources.list && \
-    echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/99retries && \
-    echo 'Acquire::http::Timeout "60";' >> /etc/apt/apt.conf.d/99retries
-
-# Устанавливаем системные зависимости
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        unzip \
         libpq-dev \
         postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
-# === УСТАНОВКА POETRY ===
-ENV POETRY_HOME="/opt/poetry"
-ENV POETRY_VERSION=1.8.3
-
 RUN curl -sSL https://install.python-poetry.org -o install-poetry.py && \
-    python3 install-poetry.py --version $POETRY_VERSION && \
+    python3 install-poetry.py --version ${POETRY_VERSION} && \
     rm install-poetry.py
-
-ENV PATH="/opt/poetry/bin:$PATH"
 
 WORKDIR /app
 
-# Копируем файлы для установки зависимостей
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml /app/
+COPY poetry.lock /app/
 
-# Копируем папку grpc_checker
-COPY grpc_checker/ ./grpc_checker/
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
 
-# Копируем все JSON-наборы правил
-COPY grpc_checker/rules/ ./rules/
-
-# Устанавливаем зависимости (используем общий pyproject.toml)
 RUN poetry config virtualenvs.create false && \
-    poetry install --only main --no-root --no-interaction --no-ansi
+    poetry config installer.parallel false && \
+    poetry install --with ml --no-root --no-interaction --no-ansi
 
-# Копируем основной код проекта (чтобы можно было импортировать project.gost_checker)
+COPY grpc_checker/ /app/grpc_checker/
 COPY src/ /app/src/
 
-# Делаем start.sh исполняемым
+RUN mkdir -p /app/rules && \
+    cp /app/grpc_checker/rules/manual_rules.json /app/rules/manual_rules.json
+
 RUN chmod +x /app/src/start.sh || true
 
-# Настройка окружения
-ENV PYTHONPATH=/app/grpc_checker:/app/src
-
-# Порт gRPC
 EXPOSE 50051
 
-# Запуск gRPC сервера
 CMD ["python", "-m", "grpc_checker.main"]

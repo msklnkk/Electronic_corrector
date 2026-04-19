@@ -5,6 +5,9 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION=1.8.3
 ENV PATH="/opt/poetry/bin:$PATH"
 ENV PYTHONPATH=/app/src:/app
+ENV POETRY_REQUESTS_TIMEOUT=600
+ENV PIP_DEFAULT_TIMEOUT=600
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN echo "deb http://mirror.yandex.ru/debian bookworm main contrib non-free" > /etc/apt/sources.list && \
     echo "deb http://mirror.yandex.ru/debian bookworm-updates main contrib non-free" >> /etc/apt/sources.list && \
@@ -37,27 +40,34 @@ COPY poetry.lock /app/
 COPY alembic.ini /app/
 COPY migration /app/migration
 
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+
 RUN poetry config virtualenvs.create false && \
     poetry config installer.parallel false && \
-    poetry install --without ml --no-root --no-interaction --no-ansi
+    poetry install --with ml --no-root --no-interaction --no-ansi
+
+RUN pip install --no-cache-dir aiokafka==0.10.0
 
 COPY ./src /app/src
 COPY ./grpc_checker /app/grpc_checker
+COPY ./gost_rules_api.json /app/gost_rules_api.json
 
 ARG CATEGORY_MODEL_PUBLIC_KEY="https://disk.yandex.ru/d/2MRs7GgdwYGgDw"
 ARG RULE_MODEL_PUBLIC_KEY="https://disk.yandex.ru/d/RB9OWft642kxyg"
 
-RUN mkdir -p /app/models && \
-    curl -s "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${CATEGORY_MODEL_PUBLIC_KEY}" \
-    | python3 -c "import sys, json; print(json.load(sys.stdin)['href'])" \
-    | xargs -I {} curl -L "{}" -o /tmp/category_classifier.zip && \
+RUN mkdir -p /app/models
+
+RUN CATEGORY_JSON=$(curl --retry 5 --retry-delay 5 --retry-all-errors -fsSL "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${CATEGORY_MODEL_PUBLIC_KEY}") && \
+    CATEGORY_HREF=$(python3 -c "import sys, json; print(json.loads(sys.argv[1])['href'])" "$CATEGORY_JSON") && \
+    curl --retry 5 --retry-delay 5 --retry-all-errors -fL "$CATEGORY_HREF" -o /tmp/category_classifier.zip && \
     unzip /tmp/category_classifier.zip -d /app/models && \
-    rm /tmp/category_classifier.zip && \
-    curl -s "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${RULE_MODEL_PUBLIC_KEY}" \
-    | python3 -c "import sys, json; print(json.load(sys.stdin)['href'])" \
-    | xargs -I {} curl -L "{}" -o /tmp/rule_classifier.zip && \
+    rm -f /tmp/category_classifier.zip
+
+RUN RULE_JSON=$(curl --retry 5 --retry-delay 5 --retry-all-errors -fsSL "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=${RULE_MODEL_PUBLIC_KEY}") && \
+    RULE_HREF=$(python3 -c "import sys, json; print(json.loads(sys.argv[1])['href'])" "$RULE_JSON") && \
+    curl --retry 5 --retry-delay 5 --retry-all-errors -fL "$RULE_HREF" -o /tmp/rule_classifier.zip && \
     unzip /tmp/rule_classifier.zip -d /app/models && \
-    rm /tmp/rule_classifier.zip
+    rm -f /tmp/rule_classifier.zip
 
 RUN chmod +x /app/src/start.sh
 

@@ -30,13 +30,17 @@ grpcio = "^1.70.0"
 grpcio-tools = { version = "^1.70.0", extras = ["grpcio"] }
 protobuf = ">=6.31.1,<7"
 aiokafka = "^0.13.0"
+sentence-transformers = "^3.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
 
 [tool.poetry.group.ml.dependencies]
 transformers = "^4.57.1"
-torch = "^2.7.0"
 scikit-learn = "^1.6.1"
 numpy = "^2.2.6"
 pymupdf = "^1.26.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
