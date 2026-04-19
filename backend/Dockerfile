@@ -40,7 +40,7 @@ COPY poetry.lock /app/
 COPY alembic.ini /app/
 COPY migration /app/migration
 
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 RUN poetry config virtualenvs.create false && \
     poetry config installer.parallel false && \

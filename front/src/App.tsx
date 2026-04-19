@@ -12,6 +12,7 @@ import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
 import CheckDocument from "./pages/CheckDocument";
 import CheckResult from "./pages/CheckResult";
+import CustomCheck from "./pages/CustomCheck";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 
@@ -61,6 +62,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <CheckResult />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.CUSTOM_CHECK}
+            element={
+              <ProtectedRoute>
+                <CustomCheck />
               </ProtectedRoute>
             }
           />

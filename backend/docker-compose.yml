@@ -50,7 +50,6 @@ services:
 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-
   app:
     depends_on:
       postgres:

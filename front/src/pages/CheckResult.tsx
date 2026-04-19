@@ -1,6 +1,6 @@
 // src/pages/CheckResult.tsx
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api"; 
 import {
   Button,
@@ -11,8 +11,9 @@ import {
   useTheme,
 } from "@mui/material";
 import { useSnackbar } from "notistack";
+import { GlobalLoader } from "components";
 import { API_ROUTES } from "../config/constants";  
-import { StyledCard, GradientButton } from "components";
+import { StyledCard } from "components";
 
 type IssueRow = {
   type: string;
@@ -22,11 +23,38 @@ type IssueRow = {
   priority: string;
 };
 
+type SemanticFinding = {
+  severity?: string;
+  title?: string;
+  message?: string;
+  page?: string | number;
+  category?: string;
+};
+
+type SemanticResultState = {
+  resultType?: "semantic";
+  semanticResult?: {
+    document_id: number;
+    filename?: string;
+    ruleset_code?: string;
+    overall_score?: number;
+    score_label?: string;
+    status?: string;
+    short_recommendation?: string;
+    total_pages?: number;
+    summary?: { auto_checked_percent?: number };
+    findings?: SemanticFinding[];
+  };
+};
+
 const CheckResult: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const { enqueueSnackbar } = useSnackbar();
+  const semanticState = (location.state || {}) as SemanticResultState;
+  const semanticResult = semanticState.resultType === "semantic" ? semanticState.semanticResult : null;
 
   const [result, setResult] = useState<any>(null);
   const [documentInfo, setDocumentInfo] = useState<any>(null);
@@ -34,6 +62,12 @@ const CheckResult: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchResult = useCallback(async () => {
+    if (semanticResult) {
+      setResult(semanticResult);
+      setLoading(false);
+      return;
+    }
+
     console.log("CheckResult: Запуск fetchResult для check_id =", id);
 
     if (!id) {
@@ -50,18 +84,6 @@ const CheckResult: React.FC = () => {
 
       console.log("CheckResult: Получен ответ от бэкенда:", data);
 
-      // Если вдруг попали сюда напрямую по URL и проверка еще идет
-      const isProcessing =
-        data?.status === "Анализируется" ||
-        data?.status === "analyzing" ||
-        (data?.total_checks === 0 && data?.passed_checks === 0 && !data?.errors?.length);
-
-      if (isProcessing) {
-        console.log("CheckResult: Проверка еще идет - повтор через 3 сек");
-        setTimeout(fetchResult, 3000);
-        return; // не убираем loading пока не готово
-      }
-
       setResult(data);
 
       // Получаем информацию о документе для времени загрузки
@@ -77,6 +99,11 @@ const CheckResult: React.FC = () => {
 
       setLoading(false);
 
+      // Повторяем запрос, если проверка ещё идёт
+      if (data?.status === "Анализируется" || data?.status === "processing" || data?.score === "0.0" || !data?.score) {
+        console.log("CheckResult: Проверка в процессе — повтор через 3 сек");
+        setTimeout(fetchResult, 3000);
+      }
     } catch (err: any) {
       console.error("CheckResult: Ошибка при получении результата:", err.response || err);
       const errorMsg = err.response?.data?.detail || "Не удалось загрузить результат";
@@ -84,13 +111,13 @@ const CheckResult: React.FC = () => {
       setError(errorMsg);
       setLoading(false);
     }
-  }, [id, enqueueSnackbar]);
+  }, [id, enqueueSnackbar, semanticResult]);
 
   useEffect(() => {
     fetchResult();
   }, [fetchResult]);
 
-  // ✅ Сохраняем фактическое время проверки в localStorage,
+  // сохраняем фактическое время проверки в localStorage,
   // чтобы потом можно было посчитать среднее в профиле
   useEffect(() => {
     if (!result?.check_id || !result?.checked_at || !documentInfo?.upload_datetime) {
@@ -168,24 +195,10 @@ const CheckResult: React.FC = () => {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 3,
-        }}
-      >
-        <CircularProgress size={80} thickness={4} sx={{ color: "primary.main" }} />
-        <Typography variant="h5" fontWeight={700}>
-          Загружаем результат...
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.5 }}>
-          Пожалуйста, подождите
-        </Typography>
-      </Box>
+      <GlobalLoader 
+        open={loading} 
+        message="Проверка документа... Это может занять несколько секунд" 
+      />
     );
   }
 
@@ -218,45 +231,60 @@ const CheckResult: React.FC = () => {
 
   const documentName = cleanFilename(result.filename);
 
-  const rawScore = result.score ?? "0";
+  const rawScore = semanticResult ? result.overall_score ?? 0 : result.score ?? "0";
   const score =
     typeof rawScore === "string"
       ? Number(rawScore.replace(/^0+/, "")) || 0
       : Number(rawScore);
 
-  const percent = Math.min(Math.max(score, 0), 100);
-  const normalizedScore = percent / 10;  // для отображения X/10
-  const statusText = percent >= 80 ? "Хорошо" : percent >= 50 ? "Удовлетворительно" : "Требует внимания";
+  const normalizedScore = Math.min(Math.max(score, 0), 10);
+  const percent = Math.round((normalizedScore / 10) * 100);
+
+  const statusText = normalizedScore >= 8 ? "Хорошо" : "Требует внимания";
 
   const backendErrors: string[] = Array.isArray(result.errors) ? result.errors : [];
   const backendWarnings: string[] = Array.isArray(result.warnings) ? result.warnings : [];
+  const semanticFindings: SemanticFinding[] = Array.isArray(result.findings) ? result.findings : [];
 
-  const criticalCount = backendErrors.length;
-  const warningCount = backendWarnings.length;
+  const criticalCount = semanticResult
+    ? semanticFindings.filter((item) => item.severity === "critical").length
+    : backendErrors.length;
+  const warningCount = semanticResult
+    ? semanticFindings.filter((item) => item.severity !== "critical").length
+    : backendWarnings.length;
 
-  const issues: IssueRow[] = [
-    ...backendErrors.map((text) => ({
-      type: "Ошибка",
-      category: "ГОСТ",
-      description: text,
-      page: "-",
-      priority: "Критично",
-    })),
-    ...backendWarnings.map((text) => ({
-      type: "Замечание",
-      category: "ГОСТ",
-      description: text,
-      page: "-",
-      priority: "Средний",
-    })),
-  ];
+  const issues: IssueRow[] = semanticResult
+    ? semanticFindings.map((item) => ({
+        type: item.severity === "critical" ? "Ошибка" : "Замечание",
+        category: item.category || "Custom",
+        description: item.message || item.title || "Найдено отклонение",
+        page: item.page ?? "-",
+        priority: item.severity === "critical" ? "Критично" : "Средний",
+      }))
+    : [
+        ...backendErrors.map((text) => ({
+          type: "Ошибка",
+          category: "ГОСТ",
+          description: text,
+          page: "-",
+          priority: "Критично",
+        })),
+        ...backendWarnings.map((text) => ({
+          type: "Замечание",
+          category: "ГОСТ",
+          description: text,
+          page: "-",
+          priority: "Средний",
+        })),
+      ];
 
   // ✅ Используем вычисленное время
   const analysisTime = calculateAnalysisTime();
-  const pagesChecked = result.pages_checked ?? "-";
-  const accuracy = result.accuracy ?? 95;
+  const pagesChecked = result.pages_checked ?? result.total_pages ?? "-";
+  const accuracy = result.accuracy ?? result.summary?.auto_checked_percent ?? 95;
 
   const recommendation =
+    result.short_recommendation ||
     result.recommendation ||
     (normalizedScore >= 8
       ? "Документ оформлен хорошо. Можно сдавать."
@@ -292,7 +320,7 @@ const CheckResult: React.FC = () => {
       <Box sx={{ mb: 4 }}>
         <Typography 
           variant="h6" 
-          color={result.score === "0.0" ? "warning.main" : "success.main"}
+          color={(semanticResult ? !result.overall_score : result.score === "0.0") ? "warning.main" : "success.main"}
         >
           Статус: {result.status || "Неизвестно"}
         </Typography>
@@ -345,7 +373,7 @@ const CheckResult: React.FC = () => {
 
               <Box>
                 <Typography variant="h5" fontWeight={600}>
-                  Соответствие ГОСТ: {normalizedScore.toFixed(1)}/10 ({percent}%)
+                  Соответствие {semanticResult ? "custom-правилам" : "ГОСТ"}: {normalizedScore.toFixed(1)}/10 ({percent}%)
                 </Typography>
                 <Typography color="text.secondary" mt={1}>
                   {result.status || "Результат проверки"}
@@ -395,10 +423,6 @@ const CheckResult: React.FC = () => {
             )}
           </StyledCard>
 
-          <Box sx={{ display: "flex", gap: 3, flexWrap: 'wrap' }}>
-            <GradientButton color="purple">Скачать отчет в PDF</GradientButton>
-            <GradientButton color="cyan">Исправить документ</GradientButton>
-          </Box>
         </Box>
 
         {/* RIGHT */}

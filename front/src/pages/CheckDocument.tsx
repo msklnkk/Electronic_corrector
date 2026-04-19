@@ -31,8 +31,7 @@ import {
   ErrorOutline,
   InfoOutlined,
 } from "@mui/icons-material";
-import { API_ROUTES, FILE_CONFIG, CHECK_TYPES } from "../config/constants";
-import { Footer } from "components";
+import { API_ROUTES, FILE_CONFIG, CHECK_TYPES, ROUTES } from "../config/constants";
 
 type CheckTypeValue = (typeof CHECK_TYPES)[keyof typeof CHECK_TYPES];
 
@@ -175,6 +174,12 @@ const CheckDocumentPage: React.FC = () => {
 
       console.log("✅ Документ загружен, ID:", document_id);
 
+      if (selectedType === CHECK_TYPES.CUSTOM) {
+        setUploading(false);
+        navigate(`${ROUTES.CUSTOM_CHECK}?document_id=${document_id}`);
+        return;
+      }
+
       console.log("🔍 Запускаю проверку ГОСТ...");
       const checkPayload: { document_id: number; standart_id?: number } = { document_id };
       if (selectedType === CHECK_TYPES.GOST && selectedStandartId !== "") {
@@ -299,11 +304,6 @@ const CheckDocumentPage: React.FC = () => {
                   value={CHECK_TYPES.GOST}
                   control={<Radio color="primary" />}
                   label="ГОСТ — проверка по государственным стандартам"
-                />
-                <FormControlLabel
-                  value={CHECK_TYPES.INTERNAL}
-                  control={<Radio color="primary" />}
-                  label="Внутренний стандарт — корпоративные требования"
                 />
                 <FormControlLabel
                   value={CHECK_TYPES.CUSTOM}
