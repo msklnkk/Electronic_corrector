@@ -113,6 +113,26 @@ def is_meta_rule(text: str, rule_number: str | None) -> bool:
     return False
 
 
+BIBLIOGRAPHY_MARKERS = [
+    "область ответственности",
+    "область выходных данных",
+    "место издания",
+    "название издательства",
+    "фамилия автора приводится",
+    "инициалы и фамилии авторов",
+    "наименования учреждений",
+    "год издания",
+    "авторского права",
+    "подписания в печать",
+    "двоеточие", 
+]
+
+
+def is_bibliography_formatting_rule(text: str) -> bool:
+    t = norm(text)
+    return sum(1 for m in BIBLIOGRAPHY_MARKERS if m in t) >= 2
+
+
 def parse_font_family(text: str) -> str | None:
     t = norm(text)
     families = {
@@ -235,8 +255,83 @@ def parse_references_count(text: str) -> int | None:
     return None
 
 
-def infer_structure_target(text: str) -> tuple[str, bool] | None:
+def parse_reference_count_conditions(text: str) -> list[dict]:
     t = norm(text)
+
+    if not any(x in t for x in ["источ", "литератур", "библиограф"]):
+        return []
+    if "не менее" not in t:
+        return []
+
+    conditions: list[dict] = []
+
+    clauses = [
+        clause.strip(" ,;:")
+        for clause in re.split(r"\s*,\s+а\s+(?=при\s+выполнении|для\s+)|[.;]", t)
+        if clause and clause.strip()
+    ]
+
+    for clause in clauses:
+        if "не менее" not in clause:
+            continue
+
+        match = re.search(
+            r"(?:при\s+выполнении|для)\s+(.+?)\s*(?:составляет,\s+как\s+правило,)?\s*(?:[-–—])?\s*не\s+менее\s+(\d+(?:[.,]\d+)?)",
+            clause,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            continue
+
+        context = match.group(1).strip(" ,;:()")
+        context = re.sub(r"\s+", " ", context).strip()
+        context = re.sub(r"[\(\[]+$", "", context).strip()
+        context = re.sub(r"[,.!?:;]+$", "", context).strip()
+        value = to_float(match.group(2))
+        if not context or value is None:
+            continue
+
+        condition = {
+            "context": context,
+            "min_count": int(value),
+            "when_any": [],
+        }
+
+        if "курсов" in context:
+            condition["when_any"].extend(["курсов", "курсовой проект"])
+        if "выпуск" in context or "квалификацион" in context:
+            condition["when_any"].extend(["выпуск", "квалификацион", "вкр"])
+        if "магист" in context:
+            condition["when_any"].append("магист")
+        if "диплом" in context:
+            condition["when_any"].append("диплом")
+        if "реферат" in context:
+            condition["when_any"].append("реферат")
+
+        conditions.append(condition)
+
+    unique: list[dict] = []
+    seen = set()
+    for condition in conditions:
+        key = (
+            condition.get("context"),
+            condition.get("min_count"),
+            tuple(condition.get("when_any") or []),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(condition)
+
+    return unique
+
+
+def infer_structure_targets(text: str) -> list[tuple[str, bool]]:
+    t = norm(text)
+
+
+    if is_bibliography_formatting_rule(text):
+        return []
 
     section_map = [
         ("section:title_page", ["титульный лист"]),
@@ -245,18 +340,63 @@ def infer_structure_target(text: str) -> tuple[str, bool] | None:
         ("section:abbreviations", ["обозначения и сокращения", "сокращения", "условные обозначения"]),
         ("section:introduction", ["введение"]),
         ("section:conclusion", ["заключение"]),
-        ("section:references", ["список использованных источников", "список литературы", "библиографический список", "список источников"]),
+        ("section:references", [
+            "список использованных источников",
+            "список литературы",
+            "библиографический список",
+            "список источников",
+        ]),
         ("section:appendix", ["приложение", "приложения"]),
     ]
 
-    is_optional = any(x in t for x in ["не является обязательным", "не являются обязательными", "по усмотрению исполнителя", "по усмотрению"])
+    section_anchor_words = [
+        "структурный элемент",
+        "структурные элементы",
+        "является обязательным",
+        "не являются обязательными",
+        "включают в работу",
+        "включают следующие",
+        "структурными элементами",
+    ]
+
+    weak_anchors = [
+        "раздел",
+        "заголовок",
+        "перечень",
+        "оформляется",
+        "приводится в",
+        "приводят в",
+    ]
+
+    is_optional = any(x in t for x in [
+        "не является обязательным",
+        "не являются обязательными",
+        "по усмотрению исполнителя",
+        "по усмотрению",
+    ])
+
+    results: list[tuple[str, bool]] = []
 
     for target, variants in section_map:
-        if any(v in t for v in variants):
-            if any(x in t for x in ["структурный элемент", "раздел", "раздела", "заголовок", "включают в работу", "перечень"]):
-                return target, is_optional
+        if not any(v in t for v in variants):
+            continue
 
-    return None
+        has_strong_anchor = any(x in t for x in section_anchor_words)
+        has_weak_anchor = any(x in t for x in weak_anchors)
+
+        if has_strong_anchor or has_weak_anchor:
+            results.append((target, is_optional))
+
+    unique: list[tuple[str, bool]] = []
+    seen = set()
+    for target, optional in results:
+        key = (target, optional)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append((target, optional))
+
+    return unique
 
 
 def infer_content_rule(text: str) -> tuple[str, list[str], list[str]] | None:
@@ -331,6 +471,88 @@ def infer_content_rule(text: str) -> tuple[str, list[str], list[str]] | None:
     return None
 
 
+def infer_required_section_from_content_target(target: str, text: str) -> str | None:
+    t = norm(text)
+
+    optional_markers = [
+        "не является обязательным",
+        "не являются обязательными",
+        "по усмотрению",
+        "при необходимости",
+        "может содержать",
+        "могут содержать",
+    ]
+    if any(marker in t for marker in optional_markers):
+        return None
+
+    mapping = {
+        "content:toc": "section:content",
+        "content:introduction": "section:introduction",
+        "content:conclusion": "section:conclusion",
+    }
+    return mapping.get(target)
+
+
+def infer_implied_required_sections(text: str) -> list[str]:
+    t = norm(text)
+
+    optional_markers = [
+        "не является обязательным",
+        "не являются обязательными",
+        "по усмотрению",
+        "при необходимости",
+        "может",
+        "могут",
+        "допускается",
+    ]
+    if any(marker in t for marker in optional_markers):
+        return []
+
+    implied: list[str] = []
+
+    references_markers = [
+        "список использованных источников",
+        "список источников",
+        "список литературы",
+        "библиографический список",
+    ]
+    references_predicates = [
+        "должен",
+        "должна",
+        "должны",
+        "включает",
+        "включать",
+        "приводят",
+        "приводится",
+        "оформляют",
+        "помещают",
+    ]
+    if any(marker in t for marker in references_markers) and any(predicate in t for predicate in references_predicates):
+        implied.append("section:references")
+
+    toc_markers = ["содержание", "оглавление"]
+    toc_predicates = [
+        "включает",
+        "включать",
+        "приводят",
+        "приводится",
+        "указывают",
+        "перечисляют",
+        "состоит",
+    ]
+    if any(marker in t for marker in toc_markers) and any(predicate in t for predicate in toc_predicates):
+        implied.append("section:content")
+
+    unique: list[str] = []
+    seen = set()
+    for target_name in implied:
+        if target_name in seen:
+            continue
+        seen.add(target_name)
+        unique.append(target_name)
+    return unique
+
+
 def normalize_extracted_rules(items: list[dict]) -> list[dict]:
     normalized: list[dict] = []
 
@@ -345,6 +567,17 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
             continue
 
         if is_meta_rule(text, rule_number):
+            continue
+
+        if is_bibliography_formatting_rule(text):
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="manual_check",
+                    target="reference:formatting",
+                    operator="manual",
+                )
+            )
             continue
 
         margins = parse_margins_mm(text)
@@ -410,6 +643,12 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
 
         ref_count = parse_references_count(text)
         if ref_count is not None:
+            conditional_thresholds = parse_reference_count_conditions(text)
+            options = {}
+            if conditional_thresholds:
+                options["conditional_thresholds"] = conditional_thresholds
+                options["selection_strategy"] = "contextual_or_min"
+
             normalized.append(
                 make_rule(
                     item=item,
@@ -417,18 +656,29 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
                     target="reference:count",
                     operator="ge",
                     expected=ref_count,
+                    options=options,
                 )
             )
 
-        structure_target = infer_structure_target(text)
-        if structure_target is not None:
-            target, is_optional = structure_target
+        structure_targets = infer_structure_targets(text)
+        for target, is_optional in structure_targets:
             normalized.append(
                 make_rule(
                     item=item,
                     check_type="section_rule",
                     target=target,
                     operator="optional" if is_optional else "required",
+                    expected=True,
+                )
+            )
+
+        for target in infer_implied_required_sections(text):
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="section_rule",
+                    target=target,
+                    operator="required",
                     expected=True,
                 )
             )
@@ -446,6 +696,17 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
                     options={"soft_items": soft},
                 )
             )
+            implied_section_target = infer_required_section_from_content_target(target, text)
+            if implied_section_target:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="section_rule",
+                        target=implied_section_target,
+                        operator="required",
+                        expected=True,
+                    )
+                )
 
         t = norm(text)
 
