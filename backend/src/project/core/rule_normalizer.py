@@ -154,6 +154,10 @@ def parse_font_size(text: str) -> float | None:
 
     patterns = [
         r"(?:размер(?:ом)?|кегл(?:ем|ь)?)\s*(?:шрифта\s*)?(\d+(?:[.,]\d+)?)\s*(?:пт|pt)\b",
+        r"(?:размер(?:ом)?|кегл(?:ем|ь)?)\s*(?:шрифта\s*)?[—\-:–]?\s*(\d+(?:[.,]\d+)?)\b",
+        r"(?:шрифт(?:а|ом)?\s+[a-z][a-z\s\-]*?)\s*(\d+(?:[.,]\d+)?)\s*(?:пт|pt)\b",
+        r"(?:times new roman|arial|calibri|courier new|verdana|tahoma)\s*,?\s*(\d+(?:[.,]\d+)?)\b",
+        r"(?:гарнитура|шрифт)\s+[a-z][a-z\s\-]+,\s*размер\s*[—\-:–]?\s*(\d+(?:[.,]\d+)?)\b",
         r"(\d+(?:[.,]\d+)?)\s*(?:пт|pt)\b",
     ]
 
@@ -174,8 +178,10 @@ def parse_line_spacing(text: str) -> float | None:
         return 1.5
     if "двойной интервал" in t or "через два интервала" in t:
         return 2.0
+    if "одинарный" in t and "интервал" in t:
+        return 1.0
 
-    m = re.search(r"(?:межстроч(?:ный)?\s+интервал|интервал)\s*(\d+(?:[.,]\d+)?)", t)
+    m = re.search(r"(?:межстроч(?:ный)?\s+интервал|междустроч(?:ный)?\s+интервал|интервал)\s*[—\-:–]?\s*(\d+(?:[.,]\d+)?)", t)
     if m:
         value = to_float(m.group(1))
         if value is not None and 1 <= value <= 4:
@@ -240,19 +246,272 @@ def parse_references_count(text: str) -> int | None:
 
     if not any(x in t for x in ["источник", "литератур", "библиограф"]):
         return None
-    if "не менее" not in t:
+    if "не менее" not in t and "не меньше" not in t:
         return None
 
     candidates = []
-    for m in re.finditer(r"не\s+менее\s+(\d+(?:[.,]\d+)?)", t):
-        value = to_float(m.group(1))
-        if value is not None and 1 <= value <= 1000:
-            candidates.append(int(value))
+    patterns = [
+        r"не\s+менее\s+(\d+(?:[.,]\d+)?)",
+        r"не\s+менее\s+чем\s+из\s+(\d+(?:[.,]\d+)?)",
+        r"не\s+менее\s+чем\s+(\d+(?:[.,]\d+)?)",
+        r"не\s+меньше\s+(\d+(?:[.,]\d+)?)",
+    ]
+
+    for pattern in patterns:
+        for m in re.finditer(pattern, t):
+            value = to_float(m.group(1))
+            if value is not None and 1 <= value <= 1000:
+                candidates.append(int(value))
+
+    if not candidates:
+        for m in re.finditer(r"(?:из|состоять\s+из|содержать)\s+(\d+(?:[.,]\d+)?)\s+наименован", t):
+            value = to_float(m.group(1))
+            if value is not None and 1 <= value <= 1000 and ("не менее" in t or "не меньше" in t):
+                candidates.append(int(value))
 
     if candidates:
         return max(candidates)
 
     return None
+
+
+def split_atomic_fragments(text: str) -> list[str]:
+    raw = strip_rule_prefix(text)
+    if not raw:
+        return []
+
+    parts = [raw]
+    extra = [
+        p.strip(" ,;:")
+        for p in re.split(r"[.;]\s+|\s+(?=при этом\s)|\s+(?=кроме того\s)", raw)
+        if p and p.strip(" ,;:")
+    ]
+    for part in extra:
+        if len(part) >= 20:
+            parts.append(part)
+
+    unique: list[str] = []
+    seen = set()
+    for part in parts:
+        key = norm(part)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(part)
+
+    return unique
+
+
+def _make_synthetic_item(source_text: str) -> dict:
+    clean_text = source_text.strip()
+    preview = clean_text[:120].strip()
+    return {
+        "id": None,
+        "rule_number": None,
+        "title": f"Полнотекстовое правило: {preview}",
+        "description": clean_text,
+        "category": "full_text_scan",
+        "severity": detect_severity(clean_text),
+        "source": "full_text_scan",
+        "rule_confidence": None,
+        "category_confidence": None,
+        "page_start": None,
+        "page_end": None,
+    }
+
+
+def infer_metric_scope(text: str) -> str | None:
+    t = norm(text)
+
+    if any(x in t for x in ["листинг", "листинга", "программ", "моноширинн", "courier new"]):
+        return "listing"
+    if any(x in t for x in ["титульн", "на тему", "рецензент", "руководитель", "дипломник"]):
+        return "title_page"
+    if "заголовки разделов" in t:
+        return "heading_level_1"
+    if "заголовки подразделов" in t:
+        return "heading_level_2"
+    if any(x in t for x in [
+        "основной текст",
+        "текст пояснительной записки",
+        "текст работы",
+        "при оформлении текста",
+        "для текста пояснительной записки",
+        "пояснительной записки выполняют",
+    ]):
+        return "body_text"
+    return None
+
+
+def _iter_full_text_fragments(full_text: str) -> list[str]:
+    marker_words = [
+        "шрифт",
+        "гарнитур",
+        "times new roman",
+        "courier new",
+        "кегл",
+        "размер",
+        "интервал",
+        "отступ",
+        "поле",
+        "поля",
+        "источник",
+        "литератур",
+        "библиограф",
+        "не менее",
+        "не меньше",
+    ]
+
+    blocks = [
+        block.strip()
+        for block in re.split(r"\n\s*\n", full_text or "")
+        if block and block.strip()
+    ]
+
+    fragments: list[str] = []
+    for block in blocks:
+        block_norm = norm(block)
+        if not any(marker in block_norm for marker in marker_words):
+            continue
+        if "дата введения" in block_norm and block_norm.count("гост") >= 2:
+            continue
+        if "стандартинформ" in block_norm and block_norm.count("гост") >= 2:
+            continue
+        for fragment in split_atomic_fragments(block):
+            fragment_norm = norm(fragment)
+            if any(marker in fragment_norm for marker in marker_words):
+                fragments.append(fragment)
+
+    unique: list[str] = []
+    seen = set()
+    for fragment in fragments:
+        key = norm(fragment)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(fragment)
+    return unique
+
+
+def extract_rules_from_full_text(full_text: str) -> list[dict]:
+    text = full_text or ""
+    if not text.strip():
+        return []
+
+    normalized: list[dict] = []
+
+    for fragment in _iter_full_text_fragments(text):
+        item = _make_synthetic_item(fragment)
+
+        margins = parse_margins_mm(fragment)
+        if margins:
+            scope = infer_metric_scope(fragment)
+            if scope != "body_text":
+                margins = None
+        if margins:
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="metric_rule",
+                    target="margins_mm",
+                    operator="equals",
+                    expected=margins,
+                    options={"scope": "body_text"},
+                )
+            )
+
+        font_family = parse_font_family(fragment)
+        if font_family:
+            scope = infer_metric_scope(fragment)
+            if scope != "body_text":
+                font_family = None
+        if font_family:
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="metric_rule",
+                    target="font_family",
+                    operator="equals",
+                    expected=font_family,
+                    options={"scope": "body_text"},
+                )
+            )
+
+        font_size = parse_font_size(fragment)
+        if font_size is not None:
+            scope = infer_metric_scope(fragment)
+            if scope != "body_text":
+                font_size = None
+        if font_size is not None:
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="metric_rule",
+                    target="font_size_pt",
+                    operator="equals",
+                    expected=font_size,
+                    options={"scope": "body_text"},
+                )
+            )
+
+        line_spacing = parse_line_spacing(fragment)
+        if line_spacing is not None:
+            scope = infer_metric_scope(fragment)
+            if scope != "body_text":
+                line_spacing = None
+        if line_spacing is not None:
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="metric_rule",
+                    target="line_spacing",
+                    operator="equals",
+                    expected=line_spacing,
+                    options={"scope": "body_text"},
+                )
+            )
+
+        indent = parse_indent_mm(fragment)
+        if indent is not None:
+            scope = infer_metric_scope(fragment)
+            if scope != "body_text":
+                indent = None
+        if indent is not None:
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="metric_rule",
+                    target="paragraph_first_line_indent_mm",
+                    operator="equals",
+                    expected=indent,
+                    options={"scope": "body_text"},
+                )
+            )
+
+        ref_count = parse_references_count(fragment)
+        if ref_count is not None:
+            fragment_norm = norm(fragment)
+            if "список использованных источников" not in fragment_norm and "список литературы" not in fragment_norm:
+                ref_count = None
+        if ref_count is not None:
+            conditional_thresholds = parse_reference_count_conditions(fragment)
+            options = {}
+            if conditional_thresholds:
+                options["conditional_thresholds"] = conditional_thresholds
+                options["selection_strategy"] = "contextual_or_min"
+
+            normalized.append(
+                make_rule(
+                    item=item,
+                    check_type="count_rule",
+                    target="reference:count",
+                    operator="ge",
+                    expected=ref_count,
+                    options=options,
+                )
+            )
+
+    return normalized
 
 
 def parse_reference_count_conditions(text: str) -> list[dict]:
@@ -337,7 +596,16 @@ def infer_structure_targets(text: str) -> list[tuple[str, bool]]:
         ("section:title_page", ["титульный лист"]),
         ("section:content", ["содержание", "оглавление"]),
         ("section:definitions", ["определения", "термины и определения"]),
-        ("section:abbreviations", ["обозначения и сокращения", "сокращения", "условные обозначения"]),
+        (
+            "section:abbreviations",
+            [
+                "обозначения и сокращения",
+                "условные обозначения",
+                "список сокращений",
+                "перечень сокращений",
+                "список условных обозначений",
+            ],
+        ),
         ("section:introduction", ["введение"]),
         ("section:conclusion", ["заключение"]),
         ("section:references", [
@@ -373,18 +641,86 @@ def infer_structure_targets(text: str) -> list[tuple[str, bool]]:
         "не являются обязательными",
         "по усмотрению исполнителя",
         "по усмотрению",
+        "если есть",
+        "если имеются",
+        "при наличии",
     ])
 
     results: list[tuple[str, bool]] = []
+    toc_context = any(x in t for x in [
+        "содержание включает",
+        "оглавление включает",
+        "в содержании",
+        "в оглавлении",
+        "состав содержания",
+        "запись содержания",
+        "заголовки всех",
+    ])
+    formatting_context = any(x in t for x in [
+        "не нумеруются",
+        "нумеруются",
+        "указываются страницы",
+        "номера страниц",
+        "записываются",
+        "оформляют",
+        "выровнен",
+        "абзац",
+        "отступ",
+        "точку не ставят",
+    ])
 
     for target, variants in section_map:
-        if not any(v in t for v in variants):
+        matched_variant = next((v for v in variants if v in t), None)
+        if not matched_variant:
             continue
 
         has_strong_anchor = any(x in t for x in section_anchor_words)
         has_weak_anchor = any(x in t for x in weak_anchors)
 
-        if has_strong_anchor or has_weak_anchor:
+        requires_strong_anchor = target in {
+            "section:abbreviations",
+            "section:introduction",
+            "section:conclusion",
+            "section:references",
+            "section:appendix",
+        }
+
+        if target == "section:appendix":
+            appendix_cross_ref = re.search(r"см\.\s*приложени", t) is not None
+            appendix_list_mention = any(
+                x in t for x in [
+                    "оглавление",
+                    "содержание",
+                    "заголовки всех",
+                    "перечень структурных элементов",
+                ]
+            )
+            appendix_self_rule = (
+                re.search(r"^2?\s*\.?\s*\d*.*приложени", t) is not None
+                or "каждое приложение" in t
+                or "приложение (" in t
+                or "приложения могут быть" in t
+                or "приложения должны" in t
+            )
+            if appendix_cross_ref or (appendix_list_mention and not appendix_self_rule):
+                continue
+
+        if toc_context and target in {
+            "section:abbreviations",
+            "section:introduction",
+            "section:conclusion",
+            "section:references",
+            "section:appendix",
+        }:
+            continue
+
+        if formatting_context and target != "section:title_page":
+            if target == "section:content" and ("содержание" in t or "оглавление" in t):
+                pass
+            else:
+                continue
+
+        if has_strong_anchor or (has_weak_anchor and not requires_strong_anchor):
             results.append((target, is_optional))
 
     unique: list[tuple[str, bool]] = []
@@ -509,6 +845,14 @@ def infer_implied_required_sections(text: str) -> list[str]:
         return []
 
     implied: list[str] = []
+    toc_context = any(x in t for x in [
+        "содержание включает",
+        "оглавление включает",
+        "в содержании",
+        "в оглавлении",
+        "заголовки всех",
+        "перечень структурных элементов",
+    ])
 
     references_markers = [
         "список использованных источников",
@@ -527,7 +871,11 @@ def infer_implied_required_sections(text: str) -> list[str]:
         "оформляют",
         "помещают",
     ]
-    if any(marker in t for marker in references_markers) and any(predicate in t for predicate in references_predicates):
+    if (
+        not toc_context
+        and any(marker in t for marker in references_markers)
+        and any(predicate in t for predicate in references_predicates)
+    ):
         implied.append("section:references")
 
     toc_markers = ["содержание", "оглавление"]
@@ -553,7 +901,7 @@ def infer_implied_required_sections(text: str) -> list[str]:
     return unique
 
 
-def normalize_extracted_rules(items: list[dict]) -> list[dict]:
+def normalize_extracted_rules(items: list[dict], full_text: str | None = None) -> list[dict]:
     normalized: list[dict] = []
 
     for item in items:
@@ -580,133 +928,134 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
             )
             continue
 
-        margins = parse_margins_mm(text)
-        if margins:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="metric_rule",
-                    target="margins_mm",
-                    operator="equals",
-                    expected=margins,
+        fragments = split_atomic_fragments(text)
+        for fragment in fragments:
+            margins = parse_margins_mm(fragment)
+            if margins:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="metric_rule",
+                        target="margins_mm",
+                        operator="equals",
+                        expected=margins,
+                    )
                 )
-            )
-            continue
 
-        font_family = parse_font_family(text)
-        if font_family:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="metric_rule",
-                    target="font_family",
-                    operator="equals",
-                    expected=font_family,
+            font_family = parse_font_family(fragment)
+            if font_family:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="metric_rule",
+                        target="font_family",
+                        operator="equals",
+                        expected=font_family,
+                    )
                 )
-            )
 
-        font_size = parse_font_size(text)
-        if font_size is not None:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="metric_rule",
-                    target="font_size_pt",
-                    operator="equals",
-                    expected=font_size,
+            font_size = parse_font_size(fragment)
+            if font_size is not None:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="metric_rule",
+                        target="font_size_pt",
+                        operator="equals",
+                        expected=font_size,
+                    )
                 )
-            )
 
-        line_spacing = parse_line_spacing(text)
-        if line_spacing is not None:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="metric_rule",
-                    target="line_spacing",
-                    operator="equals",
-                    expected=line_spacing,
+            line_spacing = parse_line_spacing(fragment)
+            if line_spacing is not None:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="metric_rule",
+                        target="line_spacing",
+                        operator="equals",
+                        expected=line_spacing,
+                    )
                 )
-            )
 
-        indent = parse_indent_mm(text)
-        if indent is not None:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="metric_rule",
-                    target="paragraph_first_line_indent_mm",
-                    operator="equals",
-                    expected=indent,
+            indent = parse_indent_mm(fragment)
+            if indent is not None:
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="metric_rule",
+                        target="paragraph_first_line_indent_mm",
+                        operator="equals",
+                        expected=indent,
+                    )
                 )
-            )
 
-        ref_count = parse_references_count(text)
-        if ref_count is not None:
-            conditional_thresholds = parse_reference_count_conditions(text)
-            options = {}
-            if conditional_thresholds:
-                options["conditional_thresholds"] = conditional_thresholds
-                options["selection_strategy"] = "contextual_or_min"
+            ref_count = parse_references_count(fragment)
+            if ref_count is not None:
+                conditional_thresholds = parse_reference_count_conditions(fragment)
+                options = {}
+                if conditional_thresholds:
+                    options["conditional_thresholds"] = conditional_thresholds
+                    options["selection_strategy"] = "contextual_or_min"
 
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="count_rule",
-                    target="reference:count",
-                    operator="ge",
-                    expected=ref_count,
-                    options=options,
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="count_rule",
+                        target="reference:count",
+                        operator="ge",
+                        expected=ref_count,
+                        options=options,
+                    )
                 )
-            )
 
-        structure_targets = infer_structure_targets(text)
-        for target, is_optional in structure_targets:
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="section_rule",
-                    target=target,
-                    operator="optional" if is_optional else "required",
-                    expected=True,
-                )
-            )
-
-        for target in infer_implied_required_sections(text):
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="section_rule",
-                    target=target,
-                    operator="required",
-                    expected=True,
-                )
-            )
-
-        content_rule = infer_content_rule(text)
-        if content_rule is not None:
-            target, hard, soft = content_rule
-            normalized.append(
-                make_rule(
-                    item=item,
-                    check_type="content_rule",
-                    target=target,
-                    operator="contains",
-                    expected=hard,
-                    options={"soft_items": soft},
-                )
-            )
-            implied_section_target = infer_required_section_from_content_target(target, text)
-            if implied_section_target:
+            structure_targets = infer_structure_targets(fragment)
+            for target, is_optional in structure_targets:
                 normalized.append(
                     make_rule(
                         item=item,
                         check_type="section_rule",
-                        target=implied_section_target,
+                        target=target,
+                        operator="optional" if is_optional else "required",
+                        expected=True,
+                    )
+                )
+
+            for target in infer_implied_required_sections(fragment):
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="section_rule",
+                        target=target,
                         operator="required",
                         expected=True,
                     )
                 )
+
+            content_rule = infer_content_rule(fragment)
+            if content_rule is not None:
+                target, hard, soft = content_rule
+                normalized.append(
+                    make_rule(
+                        item=item,
+                        check_type="content_rule",
+                        target=target,
+                        operator="contains",
+                        expected=hard,
+                        options={"soft_items": soft},
+                    )
+                )
+                implied_section_target = infer_required_section_from_content_target(target, fragment)
+                if implied_section_target:
+                    normalized.append(
+                        make_rule(
+                            item=item,
+                            check_type="section_rule",
+                            target=implied_section_target,
+                            operator="required",
+                            expected=True,
+                        )
+                    )
 
         t = norm(text)
 
@@ -760,6 +1109,9 @@ def normalize_extracted_rules(items: list[dict]) -> list[dict]:
                     operator="manual_or_llm",
                 )
             )
+
+    if full_text:
+        normalized.extend(extract_rules_from_full_text(full_text))
 
     unique = []
     seen = set()

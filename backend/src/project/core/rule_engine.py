@@ -221,6 +221,10 @@ class MetricChecker:
     def check(self, rule: dict, metrics: dict) -> dict:
         target = rule.get("target")
         expected = rule.get("expected")
+        scope = str((rule.get("options") or {}).get("scope") or "body_text")
+
+        if scope != "body_text":
+            return _fb(rule, "not_applicable", None, "Документ", "format", "", f"Правило относится к области {scope} и не проверяется общим валидатором.", "", None)
 
         if target == "font_family":
             actual = metrics.get("font_family")

@@ -3,6 +3,7 @@ import tempfile
 import os
 import traceback
 from pathlib import Path
+import pdfplumber
 
 from project.core.rule_store import generate_ruleset_code, save_ruleset, list_available_rulesets
 from project.core.rule_normalizer import normalize_extracted_rules
@@ -15,6 +16,19 @@ DEFAULT_USE_CATEGORY = os.getenv("USE_CATEGORY_MODEL", "true").lower() == "true"
 MODEL_BASE_DIR = Path(os.getenv("MODEL_BASE_DIR", "/app/models"))
 RULE_MODEL = MODEL_BASE_DIR / "rule_classifier"
 CATEGORY_MODEL = MODEL_BASE_DIR / "category_classifier"
+
+
+def extract_pdf_text(pdf_path: str) -> str:
+    pages: list[str] = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                text = (page.extract_text() or "").strip()
+                if text:
+                    pages.append(text)
+    except Exception:
+        return ""
+    return "\n\n".join(pages)
 
 
 def validate_model_dir(model_dir: Path, model_name: str) -> None:
@@ -71,7 +85,8 @@ async def extract_rules(file: UploadFile = File(...)):
             threshold=DEFAULT_THRESHOLD,
         )
 
-        normalized_rules = normalize_extracted_rules(model_result["results"])
+        full_text = extract_pdf_text(tmp_path)
+        normalized_rules = normalize_extracted_rules(model_result["results"], full_text=full_text)
 
         ruleset_code = generate_ruleset_code(file.filename)
         rules_path = save_ruleset(ruleset_code, normalized_rules)
