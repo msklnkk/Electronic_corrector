@@ -42,14 +42,27 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    restart: always
+    depends_on:
+      - kafka
+    networks:
+      - app_network
+    ports:
+      - '127.0.0.1:8080:8080'
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: 'true'
+
   app:
     depends_on:
       postgres:
@@ -73,7 +86,6 @@ services:
       - GRPC_CHECKER_HOST=grpc_checker
       - PYTHONPATH=/app/src:/app
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TASK_TOPIC=gost-rules-extract
       - KAFKA_STATUS_TOPIC=document-status-events
 
   grpc_checker:
@@ -96,7 +108,6 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app/grpc_checker:/app/src
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TASK_TOPIC=gost-rules-extract
       - KAFKA_STATUS_TOPIC=document-status-events
       - KAFKA_GROUP_ID=bert-rules-worker-group
 

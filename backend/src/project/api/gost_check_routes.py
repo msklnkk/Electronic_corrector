@@ -1,6 +1,7 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 
 from project.infrastructure.postgres.database import database
 from project.infrastructure.postgres.models import Users, Documents, Status
@@ -13,8 +14,7 @@ from project.schemas.gost_check import (
 )
 from project.core.gost_service import GostCheckService
 from project.api.depends import get_current_user, standard_repo
-
-from project.infrastructure.kafka.publishers import publish_status, publish_report_task
+from project.infrastructure.kafka.publishers import publish_status
 
 router = APIRouter(prefix="/gost-check", tags=["GOST Check"])
 
@@ -45,6 +45,7 @@ async def start_gost_check(
 ):
     async with database.session() as session:
         kafka_producer = getattr(request.app.state, "kafka_producer", None)
+
         if request_data.standart_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,6 +53,7 @@ async def start_gost_check(
             )
 
         from sqlalchemy import select
+
         stmt = select(Documents).where(
             Documents.document_id == request_data.document_id,
             Documents.user_id == current_user.user_id
@@ -71,7 +73,7 @@ async def start_gost_check(
             await publish_status(
                 kafka_producer=kafka_producer,
                 document_id=request_data.document_id,
-                status="processing",
+                status="Анализируется",
                 message="Проверка документа началась",
             )
 
@@ -83,14 +85,8 @@ async def start_gost_check(
             await publish_status(
                 kafka_producer=kafka_producer,
                 document_id=request_data.document_id,
-                status="done",
+                status="Проверен",
                 message="Проверка документа завершена",
-            )
-
-            await publish_report_task(
-                kafka_producer=kafka_producer,
-                document_id=request_data.document_id,
-                report_type="json",
             )
 
         except ValueError as e:
@@ -98,11 +94,12 @@ async def start_gost_check(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
             )
+
         except Exception as e:
             await publish_status(
                 kafka_producer=kafka_producer,
                 document_id=request_data.document_id,
-                status="failed",
+                status="Ошибка",
                 message="Ошибка при проверке документа",
                 error=str(e),
             )
@@ -130,6 +127,7 @@ async def get_gost_check_status(
 ):
     async with database.session() as session:
         from sqlalchemy import select
+
         stmt = select(Documents).where(
             Documents.document_id == document_id,
             Documents.user_id == current_user.user_id
@@ -148,7 +146,8 @@ async def get_gost_check_status(
             "Анализируется": 50,
             "Проверен": 80,
             "Идеален": 100,
-            "Отправлен на доработку": 100
+            "Отправлен на доработку": 100,
+            "Ошибка": 0,
         }
 
         stmt_status = select(Status).where(Status.status_id == document.status_id)
@@ -181,6 +180,7 @@ async def get_gost_check_result(
             )
 
         from sqlalchemy import select
+
         stmt = select(Documents).where(
             Documents.document_id == result["document_id"],
             Documents.user_id == current_user.user_id
