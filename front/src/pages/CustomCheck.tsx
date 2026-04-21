@@ -81,14 +81,39 @@ const CustomCheck: React.FC = () => {
       }
       setRulesetCode(code);
 
+      const checkStartTime = Date.now();
       const semanticRes = await api.post(
         API_ROUTES.DOCUMENTS.SEMANTIC_CHECK(documentId, code),
       );
+      const elapsedMs = Date.now() - checkStartTime;
 
-      navigate(ROUTES.CHECK_RESULT(String(documentId)), {
+      // Сохраняем в localStorage для истории и возможности повторного открытия
+      try {
+        const data = semanticRes.data as SemanticResponse;
+        const checkId = `custom_${documentId}_${Date.now()}`;
+        const entry = {
+          check_id: checkId,
+          document_id: documentId,
+          filename: data.filename ?? `Документ #${documentId}`,
+          checked_at: new Date().toISOString(),
+          score: Math.round((data.overall_score ?? 0) * 100),
+          type: "custom",
+        };
+        // Индекс для истории
+        const prev = JSON.parse(localStorage.getItem("customCheckHistory") ?? "[]");
+        localStorage.setItem("customCheckHistory", JSON.stringify([entry, ...prev].slice(0, 20)));
+        // Полный результат для открытия из истории
+        localStorage.setItem(
+          `customResult_${checkId}`,
+          JSON.stringify({ resultType: "semantic", semanticResult: data, elapsedMs }),
+        );
+      } catch { /* ignore */ }
+
+      navigate(ROUTES.CUSTOM_CHECK_RESULT, {
         state: {
           resultType: "semantic",
           semanticResult: semanticRes.data as SemanticResponse,
+          elapsedMs,
         },
       });
     } catch (err: any) {

@@ -110,11 +110,12 @@ const Profile = () => {
   };
 
   type CheckHistoryItem = {
-    check_id: number;
+    check_id: number | string;
     document_id: number;
     checked_at?: string | null;
     score?: number | null;
     result?: string | null;
+    type?: "custom" | "gost";
   };
 
   type CheckHistoryRow = CheckHistoryItem & {
@@ -248,17 +249,23 @@ const Profile = () => {
 
       try {
         const res = await api.get<CheckHistoryItem[]>(`/all_checks`);
-        const checks = res.data ?? [];
+        const gostChecks: CheckHistoryItem[] = (res.data ?? []).map((c) => ({ ...c, type: "gost" as const }));
 
-        const sorted = [...checks].sort((a, b) => {
+        // Кастомные проверки из localStorage
+        const customRaw = localStorage.getItem("customCheckHistory");
+        const customChecks: CheckHistoryItem[] = customRaw ? JSON.parse(customRaw) : [];
+
+        const all = [...gostChecks, ...customChecks].sort((a, b) => {
           const ta = a.checked_at ? new Date(a.checked_at).getTime() : 0;
           const tb = b.checked_at ? new Date(b.checked_at).getTime() : 0;
           return tb - ta;
         });
 
-        const last = sorted.slice(0, 5);
+        const last = all.slice(0, 5);
 
-        const uniqueDocIds = Array.from(new Set(last.map((c) => c.document_id)));
+        const uniqueDocIds = Array.from(
+          new Set(last.filter((c) => c.type !== "custom").map((c) => c.document_id))
+        );
         const docs = await Promise.all(
           uniqueDocIds.map((docId) => api.get<any>(`/full-info/${docId}`))
         );
@@ -270,9 +277,13 @@ const Profile = () => {
           }
         }
 
+        const cleanName = (raw: string) => raw.replace(/^\d+_[a-f0-9]+_/, "") || raw;
+
         const rows: CheckHistoryRow[] = last.map((c) => ({
           ...c,
-          filename: docMap.get(c.document_id) ?? `Документ #${c.document_id}`,
+          filename: c.type === "custom"
+            ? cleanName((c as any).filename ?? `Документ #${c.document_id}`)
+            : cleanName(docMap.get(c.document_id) ?? `Документ #${c.document_id}`),
         }));
 
         setCheckHistory(rows);
@@ -489,14 +500,39 @@ const Profile = () => {
                   )}
                 </Box>
 
-                {/* Среднее соответствие (пока статично) */}
+                {/* Среднее соответствие */}
                 <Box flex={1} textAlign="center" bgcolor="success.50" p={3} borderRadius={3}>
-                  <Typography variant="h4" fontWeight="bold" color="success.main">
-                    -
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Соответствие
-                  </Typography>
+                  {historyLoading ? (
+                    <CircularProgress size={32} />
+                  ) : (
+                    <>
+                      <Typography variant="h4" fontWeight="bold" color="success.main">
+                        {(() => {
+                          // score в БД — целое 0-100; для старых записей берём из result JSON
+                          const scores = checkHistory
+                            .map((c) => {
+                              if (c.score != null && Number.isFinite(c.score) && c.score > 0)
+                                return c.score;
+                              try {
+                                if (c.result) {
+                                  const parsed = JSON.parse(c.result);
+                                  const s = Number(parsed?.score);
+                                  if (Number.isFinite(s) && s > 0) return s;
+                                }
+                              } catch { /* ignore */ }
+                              return null;
+                            })
+                            .filter((s): s is number => s !== null);
+                          if (scores.length === 0) return "-";
+                          const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                          return `${Math.round(avg)}%`;
+                        })()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Соответствие
+                      </Typography>
+                    </>
+                  )}
                 </Box>
 
                 {/* Среднее время проверки */}
@@ -544,7 +580,14 @@ const Profile = () => {
                       alignItems="flex-start"
                     >
                       <ListItemText
-                        primary={item.filename}
+                        primary={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <span>{item.filename}</span>
+                            {item.type === "custom" && (
+                              <Chip label="Шаблон" size="small" variant="outlined" color="secondary" />
+                            )}
+                          </Box>
+                        }
                         secondary={formatCheckedAt(item.checked_at)}
                         primaryTypographyProps={{ fontWeight: 600 }}
                       />
@@ -552,7 +595,19 @@ const Profile = () => {
                         size="small"
                         variant="outlined"
                         sx={{ ml: 2, mt: 0.5 }}
-                        onClick={() => navigate(API_ROUTES.DOCUMENTS.CHECK_RESULT(String(item.check_id)))}
+                        onClick={() => {
+                          if (item.type === "custom") {
+                            try {
+                              const raw = localStorage.getItem(`customResult_${item.check_id}`);
+                              if (raw) {
+                                navigate("/custom-check/result", { state: JSON.parse(raw) });
+                                return;
+                              }
+                            } catch { /* ignore */ }
+                          } else {
+                            navigate(API_ROUTES.DOCUMENTS.CHECK_RESULT(String(item.check_id)));
+                          }
+                        }}
                       >
                         Открыть
                       </Button>
@@ -594,5 +649,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
-

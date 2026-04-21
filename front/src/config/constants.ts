@@ -64,6 +64,7 @@ export const ROUTES = {
   CHECK: '/check',
   CHECK_RESULT: (id: string) => `/gost-check/result/${id}`,
   CUSTOM_CHECK: '/custom-check',
+  CUSTOM_CHECK_RESULT: '/custom-check/result',
   PROFILE: '/profile',
 } as const;
 

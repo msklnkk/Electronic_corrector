@@ -48,12 +48,11 @@ describe('Header', () => {
   it('должен переключать тему при клике на кнопку темы', () => {
     const { onThemeToggle } = renderHeader('light');
     
-    const themeButtons = screen.getAllByRole('button');
-    const themeButton = themeButtons[0] as HTMLElement;
+    const themeButton = screen.getByRole('button', { name: /toggle theme/i });
     
     fireEvent.click(themeButton);
     expect(onThemeToggle).toHaveBeenCalled();
-  });
+});
 
   it('должен рендерить в светлом режиме', () => {
     renderHeader('light');

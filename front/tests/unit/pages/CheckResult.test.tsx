@@ -65,4 +65,40 @@ describe('CheckResult page', () => {
       expect(mockedApi.get).toHaveBeenCalled();
     });
   });
+
+  it('должен масштабировать score и показывать список рекомендаций для кастомной проверки', async () => {
+    render(
+      <SnackbarProvider maxSnack={3}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/gost-check/result/777',
+              state: {
+                resultType: 'semantic',
+                semanticResult: {
+                  document_id: 777,
+                  filename: 'custom.docx',
+                  overall_score: 0.7,
+                  status: 'completed',
+                  findings: [
+                    { severity: 'critical', message: 'Исправить структуру разделов' },
+                    { severity: 'warning', message: 'Уточнить формат таблиц' },
+                  ],
+                },
+              },
+            },
+          ]}
+        >
+          <Routes>
+            <Route path="/gost-check/result/:id" element={<CheckResult />} />
+          </Routes>
+        </MemoryRouter>
+      </SnackbarProvider>
+    );
+
+    expect(await screen.findByText(/Соответствие custom-правилам: 7\.0\/10 \(70%\)/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Рекомендации по исправлению/i })).toBeInTheDocument();
+    expect(screen.getByText(/Исправить структуру разделов/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Общие советы/i })).toBeInTheDocument();
+  });
 });

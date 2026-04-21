@@ -58,7 +58,9 @@ class AsyncGostCheckRepository:
         if document:
             raw_score = result.get('score', 0)
             try:
-                document.score = int(round(float(raw_score)))
+                score_int = int(round(float(raw_score)))
+                document.score = score_int
+                check.score = score_int
             except (ValueError, TypeError):
                 document.score = 0
 

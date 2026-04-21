@@ -7,9 +7,26 @@ import CheckDocument from '../../../src/pages/CheckDocument';
 import { ProtectedRoute } from '../../../src/components/auth';
 import { useAuth } from '../../../src/hooks/useAuth';
 
+// Мокаем api ДО импорта компонента
 jest.mock('../../../src/hooks/useAuth');
+jest.mock('@/api/axios.config', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() },
+    },
+  },
+}));
+
+import api from '@/api/axios.config';
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockedApi = api as jest.Mocked<typeof api>;
 
 const renderCheckDocument = () => {
   mockUseAuth.mockReturnValue({
@@ -32,6 +49,13 @@ const renderCheckDocument = () => {
 describe('CheckDocument page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Мокаем ответ на загрузку стандартов
+    mockedApi.get.mockResolvedValue({
+      data: [
+        { id: 1, name: 'ГОСТ' },
+        { id: 2, name: 'Внутренний стандарт' },
+      ],
+    });
   });
 
   it('должен рендерить страницу проверки документов с инструкцией загрузки', () => {
@@ -55,11 +79,11 @@ describe('CheckDocument page', () => {
     expect(startButton).toBeDisabled();
   });
 
-  it('должен содержать опции для типов проверки', () => {
+it('должен содержать опции для типов проверки', () => {
     renderCheckDocument();
-    expect(screen.getByText(/гост/i)).toBeInTheDocument();
-    expect(screen.getByText(/внутренний стандарт/i)).toBeInTheDocument();
-  });
+    expect(screen.getByText(/гост — проверка по государственным стандартам/i)).toBeInTheDocument();
+    expect(screen.getByText(/пользовательский шаблон — настраиваемые правила/i)).toBeInTheDocument();
+});
 
   it('должен содержать пример отчёта', () => {
     renderCheckDocument();

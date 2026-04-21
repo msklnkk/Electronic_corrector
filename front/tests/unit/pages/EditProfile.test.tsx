@@ -86,7 +86,7 @@ describe('EditProfilePage', () => {
     });
 
     expect(mockedApi.put).toHaveBeenCalledWith(
-        '/update_user/1',
+        '/update_me',
         expect.objectContaining({
           email: 'newuser@example.com',
           password: 'newPassword123',
