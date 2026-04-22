@@ -13,6 +13,7 @@ export interface UserProfile {
   tg_username?: string | null;
   telegram_id?: number | null;
   is_tg_subscribed?: boolean;
+  avatar_data: string | null;
 }
 
 export interface UserStats {

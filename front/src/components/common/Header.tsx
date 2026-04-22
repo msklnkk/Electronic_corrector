@@ -44,6 +44,13 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
   const isAuthenticated = !!AuthService.getToken();
   const user = AuthService.getCurrentUser();
 
+  const [avatarSrc, setAvatarSrc] = useState<string>("");
+
+  useEffect(() => {
+    setAvatarSrc(localStorage.getItem("user_avatar") ?? "");
+  }, [location.pathname]);
+
+
   useEffect(() => {
     if (location.pathname === ROUTES.LOGIN) {
       setOpen(false);
@@ -153,6 +160,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
                     }
                   >
                     <Avatar
+                      src={avatarSrc || undefined}
                       sx={{
                         bgcolor: "primary.main",
                         fontWeight: "bold",
@@ -160,7 +168,7 @@ const Header: React.FC<HeaderProps> = ({ mode, onThemeToggle }) => {
                         height: 40,
                       }}
                     >
-                      {avatarLetter}
+                      {!avatarSrc && avatarLetter}
                     </Avatar>
                   </Badge>
                 </IconButton>
