@@ -180,6 +180,12 @@ const CheckDocumentPage: React.FC = () => {
         return;
       }
 
+      if (selectedType === CHECK_TYPES.USER_TEMPLATE) {
+        setUploading(false);
+        navigate(`${ROUTES.USER_TEMPLATE_CHECK}?document_id=${document_id}`);
+        return;
+      }
+
       console.log("🔍 Запускаю проверку ГОСТ...");
       const checkPayload: { document_id: number; standart_id?: number } = { document_id };
       if (selectedType === CHECK_TYPES.GOST && selectedStandartId !== "") {
@@ -308,7 +314,12 @@ const CheckDocumentPage: React.FC = () => {
                 <FormControlLabel
                   value={CHECK_TYPES.CUSTOM}
                   control={<Radio color="primary" />}
-                  label="Пользовательский шаблон — настраиваемые правила"
+                  label="Кастомная проверка — правила из загружаемого PDF"
+                />
+                <FormControlLabel
+                  value={CHECK_TYPES.USER_TEMPLATE}
+                  control={<Radio color="primary" />}
+                  label="Пользовательский шаблон — параметры задаются вручную"
                 />
               </RadioGroup>
 

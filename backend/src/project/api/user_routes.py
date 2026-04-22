@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from fastapi import status
 
 from project.core.exceptions import UserAlreadyExists, UserNameAlreadyExists, UserNotFound, UserTelegramAlreadyExists
-from project.resource.auth import get_password_hash
+from project.resource.auth import get_password_hash, verify_password
 from project.schemas.user import UserCreate, UserSchema, UserUpdateSelf
 
 from project.api.depends import database, user_repo, get_current_user, check_for_admin_access
@@ -147,6 +147,32 @@ async def update_me(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error.message)
 
     return updated_user
+
+
+@user_routes.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    data: dict,
+    current_user: UserSchema = Depends(get_current_user),
+):
+    old_password = data.get("old_password", "")
+    new_password = data.get("new_password", "")
+
+    if not old_password or not new_password:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Заполните оба поля")
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Новый пароль должен содержать минимум 6 символов")
+
+    if not verify_password(old_password, current_user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текущий пароль введён неверно")
+
+    update_dto = UserUpdateSelf(password=new_password)
+    update_dto.password = get_password_hash(new_password)
+
+    async with database.session() as session:
+        await user_repo.update_user(session=session, user_id=current_user.user_id, user=update_dto)
+
+    return {"detail": "Пароль успешно изменён"}
 
 
 @user_routes.post("/telegram-auth")

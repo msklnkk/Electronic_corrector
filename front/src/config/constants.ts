@@ -22,6 +22,7 @@ export const API_ROUTES = {
     SEMANTIC_RULESETS: "/semantic-check/rulesets",
     RULESETS: "/rules/rulesets",
     RULE_EXTRACT: "/rules/extract",
+    USER_TEMPLATE_CHECK: (documentId: number) => `/gost-check/user-template/${documentId}`,
   },
   TELEGRAM: {
     AUTH: '/telegram-auth',
@@ -56,6 +57,7 @@ export const CHECK_TYPES = {
   GOST: 'gost',
   INTERNAL: 'internal',
   CUSTOM: 'custom',
+  USER_TEMPLATE: 'user_template',
 } as const;
 
 export const ROUTES = {
@@ -65,6 +67,8 @@ export const ROUTES = {
   CHECK_RESULT: (id: string) => `/gost-check/result/${id}`,
   CUSTOM_CHECK: '/custom-check',
   CUSTOM_CHECK_RESULT: '/custom-check/result',
+  USER_TEMPLATE_CHECK: '/user-template-check',
+  USER_TEMPLATE_CHECK_RESULT: '/user-template-check/result',
   PROFILE: '/profile',
 } as const;
 

@@ -14,6 +14,8 @@ import CheckDocument from "./pages/CheckDocument";
 import CheckResult from "./pages/CheckResult";
 import CustomCheck from "./pages/CustomCheck";
 import CustomCheckResult from "./pages/CustomCheckResult";
+import UserTemplateCheck from "./pages/UserTemplateCheck";
+import UserTemplateResult from "./pages/UserTemplateResult";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 
@@ -81,6 +83,24 @@ function App() {
             element={
               <ProtectedRoute>
                 <CustomCheckResult />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.USER_TEMPLATE_CHECK}
+            element={
+              <ProtectedRoute>
+                <UserTemplateCheck />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={ROUTES.USER_TEMPLATE_CHECK_RESULT}
+            element={
+              <ProtectedRoute>
+                <UserTemplateResult />
               </ProtectedRoute>
             }
           />
