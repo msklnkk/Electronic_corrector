@@ -44,3 +44,26 @@ class GostCheckStatus(BaseModel):
     status: str
     progress: int
     estimated_time_remaining: Optional[int] = None
+
+
+class UserTemplateCheckRequest(BaseModel):
+    font_name: Optional[str] = None
+    font_size: Optional[float] = None
+    paragraph_indent_cm: Optional[float] = None
+    margin_left_mm: Optional[float] = None
+    margin_right_mm: Optional[float] = None
+    margin_top_mm: Optional[float] = None
+    margin_bottom_mm: Optional[float] = None
+    required_sections: Optional[List[str]] = None
+
+
+class UserTemplateCheckResult(BaseModel):
+    document_id: int
+    filename: Optional[str] = None
+    status: str
+    score: int
+    is_compliant: bool
+    errors: List[str]
+    warnings: List[str]
+    total_checks: int
+    passed_checks: int

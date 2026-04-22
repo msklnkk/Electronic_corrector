@@ -70,6 +70,8 @@ const CustomCheck: React.FC = () => {
     setLoading(true);
     setError(null);
 
+    const checkStartTime = Date.now();
+
     try {
       const extractPayload = new FormData();
       extractPayload.append("file", gostFile);
@@ -81,7 +83,6 @@ const CustomCheck: React.FC = () => {
       }
       setRulesetCode(code);
 
-      const checkStartTime = Date.now();
       const semanticRes = await api.post(
         API_ROUTES.DOCUMENTS.SEMANTIC_CHECK(documentId, code),
       );
@@ -124,7 +125,7 @@ const CustomCheck: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
+    <Container maxWidth="md" sx={{ py: 6, minHeight: "calc(100vh - 64px)" }}>
       <Stack spacing={3}>
         <Typography variant="h4" fontWeight={700}>
           Кастомная проверка документа

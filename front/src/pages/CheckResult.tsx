@@ -277,7 +277,7 @@ const CheckResult: React.FC = () => {
                 <Box key={i} sx={tableRow}>
                   <span>{e.type}</span>
                   <span>{e.category}</span>
-                  <span>{e.description}</span>
+                  <span style={{ overflowWrap: "break-word", wordBreak: "break-word", minWidth: 0 }}>{e.description}</span>
                   <span style={{ color: e.priority === "Критично" ? "#ff7675" : "#f1c40f", fontWeight: 600 }}>
                     {e.priority}
                   </span>
@@ -323,7 +323,8 @@ const badgeStyle = (theme: any, color: string) => ({
 
 const tableHeader = {
   display: "grid",
-  gridTemplateColumns: "80px 160px 1fr 120px",
+  gridTemplateColumns: "120px 160px 1fr 120px",
+  columnGap: "16px",
   opacity: 0.6,
   padding: "12px 0",
   borderBottom: (theme: any) => `1px solid ${theme.palette.divider}`,
@@ -331,7 +332,8 @@ const tableHeader = {
 
 const tableRow = {
   display: "grid",
-  gridTemplateColumns: "80px 160px 1fr 120px",
+  gridTemplateColumns: "120px 160px 1fr 120px",
+  columnGap: "16px",
   padding: "14px 0",
   borderBottom: (theme: any) => `1px solid ${theme.palette.divider}`,
 };

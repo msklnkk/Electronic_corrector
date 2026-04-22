@@ -13,9 +13,14 @@ import {
   CircularProgress,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  TextField,
+  Alert,
+  Collapse,
+  IconButton,
+  InputAdornment,
 } from "@mui/material";
-import { Edit, Close, Telegram as TelegramIcon } from "@mui/icons-material";
+import { Edit, Close, Telegram as TelegramIcon, Lock, Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "api";
@@ -41,6 +46,14 @@ const Profile = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [pwForm, setPwForm] = useState({ old_password: "", new_password: "", confirm: "" });
   const [formData, setFormData] = useState<EditFormData>({
     first_name: "",
     surname_name: "",
@@ -115,7 +128,8 @@ const Profile = () => {
     checked_at?: string | null;
     score?: number | null;
     result?: string | null;
-    type?: "custom" | "gost";
+    type?: "custom" | "gost" | "user_template";
+    filename?: string;
   };
 
   type CheckHistoryRow = CheckHistoryItem & {
@@ -255,7 +269,11 @@ const Profile = () => {
         const customRaw = localStorage.getItem("customCheckHistory");
         const customChecks: CheckHistoryItem[] = customRaw ? JSON.parse(customRaw) : [];
 
-        const all = [...gostChecks, ...customChecks].sort((a, b) => {
+        // Проверки по пользовательскому шаблону из localStorage
+        const templateRaw = localStorage.getItem("userTemplateCheckHistory");
+        const templateChecks: CheckHistoryItem[] = templateRaw ? JSON.parse(templateRaw) : [];
+
+        const all = [...gostChecks, ...customChecks, ...templateChecks].sort((a, b) => {
           const ta = a.checked_at ? new Date(a.checked_at).getTime() : 0;
           const tb = b.checked_at ? new Date(b.checked_at).getTime() : 0;
           return tb - ta;
@@ -281,7 +299,7 @@ const Profile = () => {
 
         const rows: CheckHistoryRow[] = last.map((c) => ({
           ...c,
-          filename: c.type === "custom"
+          filename: (c.type === "custom" || c.type === "user_template")
             ? cleanName((c as any).filename ?? `Документ #${c.document_id}`)
             : cleanName(docMap.get(c.document_id) ?? `Документ #${c.document_id}`),
         }));
@@ -473,6 +491,98 @@ const Profile = () => {
             >
               Редактировать профиль
             </Button>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Lock />}
+              sx={{ mt: 1.5, py: 1.5, borderRadius: 3 }}
+              onClick={() => { setPwOpen((v) => !v); setPwError(null); setPwSuccess(false); setPwForm({ old_password: "", new_password: "", confirm: "" }); }}
+            >
+              {pwOpen ? "Скрыть" : "Изменить пароль"}
+            </Button>
+
+            <Collapse in={pwOpen}>
+              <Box sx={{ mt: 2 }}>
+                {pwSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }}>Пароль успешно изменён</Alert>
+                )}
+                {pwError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>{pwError}</Alert>
+                )}
+                <Stack spacing={2}>
+                  <TextField
+                    label="Текущий пароль"
+                    type={showOld ? "text" : "password"}
+                    size="small"
+                    fullWidth
+                    value={pwForm.old_password}
+                    onChange={(e) => setPwForm((p) => ({ ...p, old_password: e.target.value }))}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton size="small" onClick={() => setShowOld((v) => !v)}>
+                            {showOld ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <TextField
+                    label="Новый пароль"
+                    type={showNew ? "text" : "password"}
+                    size="small"
+                    fullWidth
+                    value={pwForm.new_password}
+                    onChange={(e) => setPwForm((p) => ({ ...p, new_password: e.target.value }))}
+                    helperText="Минимум 6 символов"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton size="small" onClick={() => setShowNew((v) => !v)}>
+                            {showNew ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <TextField
+                    label="Повторите новый пароль"
+                    type="password"
+                    size="small"
+                    fullWidth
+                    value={pwForm.confirm}
+                    onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                    error={pwForm.confirm.length > 0 && pwForm.confirm !== pwForm.new_password}
+                    helperText={pwForm.confirm.length > 0 && pwForm.confirm !== pwForm.new_password ? "Пароли не совпадают" : ""}
+                  />
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    disabled={pwLoading || !pwForm.old_password || pwForm.new_password.length < 6 || pwForm.new_password !== pwForm.confirm}
+                    onClick={async () => {
+                      setPwLoading(true);
+                      setPwError(null);
+                      setPwSuccess(false);
+                      try {
+                        await api.post("/change-password", {
+                          old_password: pwForm.old_password,
+                          new_password: pwForm.new_password,
+                        });
+                        setPwSuccess(true);
+                        setPwForm({ old_password: "", new_password: "", confirm: "" });
+                      } catch (err: any) {
+                        setPwError(err?.response?.data?.detail || "Ошибка при смене пароля");
+                      } finally {
+                        setPwLoading(false);
+                      }
+                    }}
+                  >
+                    {pwLoading ? "Сохранение..." : "Сохранить пароль"}
+                  </Button>
+                </Stack>
+              </Box>
+            </Collapse>
           </Paper>
         </Box>
 
@@ -584,7 +694,10 @@ const Profile = () => {
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             <span>{item.filename}</span>
                             {item.type === "custom" && (
-                              <Chip label="Шаблон" size="small" variant="outlined" color="secondary" />
+                              <Chip label="Custom" size="small" variant="outlined" color="secondary" />
+                            )}
+                            {item.type === "user_template" && (
+                              <Chip label="Шаблон" size="small" variant="outlined" color="info" />
                             )}
                           </Box>
                         }
@@ -601,6 +714,14 @@ const Profile = () => {
                               const raw = localStorage.getItem(`customResult_${item.check_id}`);
                               if (raw) {
                                 navigate("/custom-check/result", { state: JSON.parse(raw) });
+                                return;
+                              }
+                            } catch { /* ignore */ }
+                          } else if (item.type === "user_template") {
+                            try {
+                              const raw = localStorage.getItem(`userTemplateResult_${item.check_id}`);
+                              if (raw) {
+                                navigate(ROUTES.USER_TEMPLATE_CHECK_RESULT, { state: JSON.parse(raw) });
                                 return;
                               }
                             } catch { /* ignore */ }
