@@ -17,6 +17,7 @@ class UserBase(BaseModel):
     is_tg_subscribed: bool = False
     theme: str = "light"
     is_push_enabled: bool = False
+    avatar_data: Optional[str] = None
 
 class UserCreate(UserBase):
     pass
@@ -48,6 +49,7 @@ class UserUpdateSelf(BaseModel):
     # theme: Optional[str] = None
     # is_push_enabled: Optional[bool] = None
     model_config = ConfigDict(from_attributes=True)
+    avatar_data: Optional[str] = None
 
 class UserSchema(UserBase):
     user_id: int

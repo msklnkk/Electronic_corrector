@@ -1,6 +1,8 @@
 # backend/src/project/api/user_routes.py
 import hashlib
 import hmac
+import base64
+from fastapi import UploadFile, File
 
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
@@ -14,6 +16,11 @@ from project.api.depends import database, user_repo, get_current_user, check_for
 from project.services.telegram import TG_BOT_TOKEN, is_user_subscribed
 
 user_routes = APIRouter()
+
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_SIZE_MB = 2
+
+
 
 
 @user_routes.get(
@@ -242,3 +249,40 @@ async def check_tg_subscription(
         "subscribed": subscribed,
         "message": "Подписка подтверждена!" if subscribed else "Вы не подписаны на канал"
     }
+
+
+@user_routes.post(
+    "/upload-avatar",
+    response_model=UserSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: UserSchema = Depends(get_current_user),
+) -> UserSchema:
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Допустимые форматы: JPEG, PNG, WebP, GIF",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Размер файла не должен превышать {MAX_SIZE_MB} МБ",
+        )
+
+    # Кодируем в base64 с data URI — фронтенд сразу использует как src
+    b64 = base64.b64encode(content).decode("utf-8")
+    avatar_data = f"data:{file.content_type};base64,{b64}"
+
+    update_dto = UserUpdateSelf(avatar_data=avatar_data)
+    async with database.session() as session:
+        updated_user = await user_repo.update_user(
+            session=session,
+            user_id=current_user.user_id,
+            user=update_dto,
+        )
+
+    return updated_user

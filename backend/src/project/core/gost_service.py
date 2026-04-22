@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from project.grpc.client import GostCheckerClient
 from project.infrastructure.postgres.repository.gost_check_repo import AsyncGostCheckRepository
 from project.infrastructure.postgres.models import Check, Documents, Standart, Status
+from project.infrastructure.postgres.database import database
 
 
 class GostCheckService:
@@ -22,12 +23,16 @@ class GostCheckService:
         # Запустить проверку ГОСТ для документа
         check = await self.repository.create_gost_check(document_id, standart_id=standart_id)
         await self._update_document_status(document_id, "Анализируется")
-        asyncio.create_task(self._process_gost_check(document_id, check.check_id))
+        # Запускаем фоновую задачу БЕЗ передачи текущей сессии
+        asyncio.create_task(
+            _run_gost_check_in_new_session(document_id, check.check_id)
+        )
         return check.check_id
 
     async def _process_gost_check(self, document_id: int, check_id: int):
         # Асинхронная обработка проверки ГОСТ через gRPC
         document = None
+        grpc_client = GostCheckerClient(target="grpc_checker:50051")
         try:
             # Получаем информацию о документе из БД
             result = await self.db.execute(
@@ -231,3 +236,9 @@ class GostCheckService:
             'total_checks': int(report.get('total_checks', 0)),
             'passed_checks': int(report.get('passed_checks', 0))
         }
+
+
+async def _run_gost_check_in_new_session(document_id: int, check_id: int):
+    async with database.session() as db:
+        service = GostCheckService(db)
+        await service._process_gost_check(document_id, check_id)

@@ -40,11 +40,11 @@ COPY poetry.lock /app/
 COPY alembic.ini /app/
 COPY migration /app/migration
 
-RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
 
 RUN poetry config virtualenvs.create false && \
     poetry config installer.parallel false && \
-    poetry install --with ml --no-root --no-interaction --no-ansi
+    poetry install --without ml --no-root --no-interaction --no-ansi
 
 RUN pip install --no-cache-dir aiokafka==0.10.0
 

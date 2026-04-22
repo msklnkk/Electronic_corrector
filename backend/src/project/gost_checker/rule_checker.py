@@ -201,7 +201,7 @@ class GOSTRuleChecker:
                            severity: str) -> ValidationResult:
         # Проверка наличия элементов списка
         missing_elements = []
-        
+
         for expected in expected_list:
             found = False
             for actual in actual_list:
@@ -369,38 +369,79 @@ class GOSTRuleChecker:
             actual=actual[:100] + "..." if len(actual) > 100 else actual
         )
     
-    def check_introduction(self, introduction_text: str) -> ValidationResult:
+    def check_introduction(self, introduction_text: str) -> Optional[ValidationResult]:
         # Проверка содержания введения
         rule = self.rules.get('5.6_introduction')
         if not rule:
             return None
+
+        if not introduction_text or len(introduction_text.strip()) < 50:
+            return ValidationResult(
+                rule_id='5.6_introduction',
+                rule_title=rule['title'],
+                is_passed=False,
+                message="Текст введения не найден или слишком короткий",
+                severity=Severity(rule['severity']),
+                expected=rule['expected_value'],
+                actual="",
+                suggestion="Добавьте раздел 'Введение' в документ"
+            )
         
         content_lower = introduction_text.lower()
         expected_items = rule['expected_value']
         missing_items = []
-        
+
+        # Расширенный словарь синонимов
+
+        synonyms = {
+            'состояние разработок по теме': [
+                'состояние', 'анализ литературы', 'обзор литературы',
+                'степень изученности', 'анализ источников',
+                'современное состояние', 'обзор существующих',
+                'анализ существующих', 'анализ предметной области',  # ← часто встречается
+                'изучены системы', 'предметной области'
+            ],
+            'обоснование актуальности': [
+                'актуальность', 'актуальна', 'актуален',
+                'является актуальной', 'обусловлена', 'обусловлен',
+                'в условиях', 'активно использует',  # ← "в условиях цифровизации"
+            ],
+            'обоснование новизны': [
+                'новизна', 'новизной', 'научная новизна',
+                'практическая новизна', 'впервые', 'новый подход'
+            ],
+            'связь с другими работами': [
+                'связь с', 'связана с', 'взаимосвязь',
+                'в рамках', 'продолжение', 'основывается на',
+                'такие как', 'изучены системы',  # ← "изучены системы Toast и OpenTable"
+            ],
+            'цель работы': [
+                'цель', 'целью', 'целью работы', 'целью исследования',
+                'целью данной', 'основная цель', 'главная цель',
+                'цели проекта', 'цель проекта',  # ← "Цели проекта:"
+                'цели работы', 'цели исследования'
+            ],
+            'задачи работы': [
+                'задачи', 'задачами', 'для достижения цели',
+                'для реализации цели', 'поставлены следующие',
+                'решить следующие', 'следующих задач',  # ← "выполнение следующих задач:"
+                'задач:', 'задачи:'
+            ],
+        }
+
         for item in expected_items:
-            if item not in content_lower:
-                # Проверяем синонимы
-                synonyms = {
-                    'состояние разработок по теме': ['состояние исследований', 'обзор литературы', 'анализ существующих'],
-                    'обоснование актуальности': ['актуальность темы', 'актуальность работы'],
-                    'обоснование новизны': ['новизна исследования', 'новизна работы'],
-                    'связь с другими работами': ['связь с исследованиями', 'взаимосвязь с работами'],
-                    'цель работы': ['цель исследования', 'цель данной работы'],
-                    'задачи работы': ['задачи исследования', 'задачи данной работы']
-                }
-                
-                found = False
-                if item in synonyms:
-                    for synonym in synonyms[item]:
-                        if synonym in content_lower:
-                            found = True
-                            break
-                
-                if not found:
-                    missing_items.append(item)
-        
+            item_lower = item.lower()
+            found = item_lower in content_lower
+
+            if not found and item_lower in synonyms:
+                for synonym in synonyms[item_lower]:
+                    if synonym in content_lower:
+                        found = True
+                        break
+
+            if not found:
+                missing_items.append(item)
+
         is_passed = len(missing_items) == 0
         
         if is_passed:
@@ -415,7 +456,7 @@ class GOSTRuleChecker:
             message=message,
             severity=Severity(rule['severity']),
             expected=expected_items,
-            actual=introduction_text[:200] + "..." if len(introduction_text) > 200 else introduction_text,
+            actual=introduction_text[:300] + "..." if len(introduction_text) > 300 else introduction_text,
             suggestion=f"Добавьте в введение: {', '.join(missing_items)}" if missing_items else None
         )
     

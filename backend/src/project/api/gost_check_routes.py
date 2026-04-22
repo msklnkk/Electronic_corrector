@@ -1,3 +1,4 @@
+# backend/src/project/api/gost_check_routes.py
 from datetime import datetime
 from decimal import Decimal
 
@@ -17,6 +18,15 @@ from project.schemas.gost_check import (
 from project.core.gost_service import GostCheckService
 from project.api.depends import get_current_user, standard_repo
 from project.infrastructure.kafka.publishers import publish_status
+
+import json as _json
+import os
+import tempfile
+
+from sqlalchemy import select as sa_select
+
+from project.gost_checker.checker import GOSTDocumentChecker
+from project.gost_checker.models import RuleSeverity
 
 router = APIRouter(prefix="/gost-check", tags=["GOST Check"])
 
@@ -277,14 +287,6 @@ async def run_user_template_check(
     request_data: UserTemplateCheckRequest,
     current_user: Users = Depends(get_current_user),
 ):
-    import json as _json
-    import os
-    import tempfile
-
-    from sqlalchemy import select as sa_select
-
-    from project.gost_checker.checker import GOSTDocumentChecker
-    from project.gost_checker.models import RuleSeverity
 
     async with database.session() as session:
         stmt = sa_select(Documents).where(

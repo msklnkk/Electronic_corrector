@@ -42,6 +42,8 @@ class Users(Base):
         "Review", back_populates="user", cascade="all, delete-orphan"
     )
 
+    avatar_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="Аватарка в base64")
+
 
 class Documents(Base):
     __tablename__ = "documents"

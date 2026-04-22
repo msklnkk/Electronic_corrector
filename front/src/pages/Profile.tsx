@@ -20,7 +20,7 @@ import {
   IconButton,
   InputAdornment,
 } from "@mui/material";
-import { Edit, Close, Telegram as TelegramIcon, Lock, Visibility, VisibilityOff } from "@mui/icons-material";
+import { Edit, Telegram as TelegramIcon, Lock, Visibility, VisibilityOff, PhotoCamera } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 import { api } from "api";
@@ -28,24 +28,14 @@ import type { UserProfile } from "types";
 import { API_ROUTES, ROUTES } from "config/constants";
 import { useAverageCheckTime } from "../hooks/useAverageCheckTime";
 
-type EditFormData = {
-  first_name: string;
-  surname_name: string;
-  patronomic_name: string;
-  username: string;
-  tg_username: string;
-  password: string;
-};
-
 const Profile = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { averageTimeFormatted, totalChecks, loading: timeLoading } = useAverageCheckTime(user?.user_id);
   const telegramWidgetRef = useRef<HTMLDivElement>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+
 
   const [pwOpen, setPwOpen] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
@@ -54,73 +44,7 @@ const Profile = () => {
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [pwForm, setPwForm] = useState({ old_password: "", new_password: "", confirm: "" });
-  const [formData, setFormData] = useState<EditFormData>({
-    first_name: "",
-    surname_name: "",
-    patronomic_name: "",
-    username: "",
-    tg_username: "",
-    password: "",
-  });
 
-  // Открыть диалог — заполняем форму текущими данными
-  const handleEditOpen = () => {
-    setFormData({
-      first_name: user?.first_name ?? "",
-      surname_name: user?.surname_name ?? "",
-      patronomic_name: user?.patronomic_name ?? "",
-      username: user?.username ?? "",
-      tg_username: user?.tg_username ?? "",
-      password: "",
-    });
-    setEditError(null);
-    setEditOpen(true);
-  };
-
-  const handleEditClose = () => {
-    setEditOpen(false);
-    setEditError(null);
-  };
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  // Отправка формы
-  const handleEditSubmit = async () => {
-    setEditLoading(true);
-    setEditError(null);
-
-    try {
-      const token = localStorage.getItem("access_token");
-
-      // Отправляем только заполненные поля
-      const payload: Partial<EditFormData> = {};
-      if (formData.first_name) payload.first_name = formData.first_name;
-      if (formData.surname_name) payload.surname_name = formData.surname_name;
-      if (formData.patronomic_name) payload.patronomic_name = formData.patronomic_name;
-      if (formData.username) payload.username = formData.username;
-      if (formData.tg_username) payload.tg_username = formData.tg_username;
-      if (formData.password) payload.password = formData.password;
-
-      await api.put("/update_me", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Обновляем данные пользователя
-      const response = await api.get<UserProfile>("/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(response.data);
-      handleEditClose();
-
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || "Ошибка при сохранении";
-      setEditError(msg);
-    } finally {
-      setEditLoading(false);
-    }
-  };
 
   type CheckHistoryItem = {
     check_id: number | string;
@@ -139,6 +63,35 @@ const Profile = () => {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [checkHistory, setCheckHistory] = useState<CheckHistoryRow[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setAvatarLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await api.post<UserProfile>("/upload-avatar", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      setUser(response.data);
+      localStorage.setItem("user_avatar", response.data.avatar_data ?? "");
+
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Ошибка загрузки аватара");
+    } finally {
+      setAvatarLoading(false);
+      e.target.value = ""; // сбрасываем input, чтобы можно было загрузить тот же файл повторно
+    }
+  };
+
 
   // ─────────────────────────────────────────────────────────────────────
   // ВСЁ, ЧТО СВЯЗАНО С ПРОВЕРКОЙ ПОДПИСКИ НА ТЕЛЕГРАМ — ЗАКOMМЕНТИРОВАНО
@@ -240,6 +193,7 @@ const Profile = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
+        localStorage.setItem("user_avatar", response.data.avatar_data ?? "");
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
           localStorage.removeItem("access_token");
@@ -357,19 +311,49 @@ const Profile = () => {
           <div ref={telegramWidgetRef} style={{ display: "none" }} />
           <Paper variant="outlined" sx={{ p: 4, borderRadius: "16px" }}>
             <Box textAlign="center" mb={3}>
-              <Avatar
-                sx={{
-                  width: 110,
-                  height: 110,
-                  mx: "auto",
-                  mb: 2,
-                  bgcolor: "primary.main",
-                  fontSize: "3rem",
-                  fontWeight: "bold",
-                }}
-              >
-                {initials}
-              </Avatar>
+              <Box sx={{ position: "relative", width: 110, mx: "auto", mb: 2 }}>
+                <Avatar
+                  src={user.avatar_data ?? undefined}
+                  sx={{
+                    width: 110,
+                    height: 110,
+                    bgcolor: "primary.main",
+                    fontSize: "3rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {!user.avatar_data && initials}
+                </Avatar>
+
+                <label htmlFor="avatar-upload">
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    style={{ display: "none" }}
+                    onChange={handleAvatarChange}
+                  />
+                  <IconButton
+                    component="span"
+                    size="small"
+                    disabled={avatarLoading}
+                    sx={{
+                      position: "absolute",
+                      bottom: 0,
+                      right: 0,
+                      bgcolor: "background.paper",
+                      border: "2px solid",
+                      borderColor: "primary.main",
+                      "&:hover": { bgcolor: "primary.50" },
+                    }}
+                  >
+                    {avatarLoading
+                      ? <CircularProgress size={16} />
+                      : <PhotoCamera fontSize="small" color="primary" />
+                    }
+                  </IconButton>
+                </label>
+              </Box>
 
               <Typography variant="h5" fontWeight={700}>
                 {fullName}
