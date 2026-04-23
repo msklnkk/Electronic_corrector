@@ -55,3 +55,7 @@ class UserSchema(UserBase):
     user_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=6)

@@ -11,7 +11,7 @@ from project.api.depends import database, status_repo, get_current_user, check_f
 status_routes = APIRouter()
 
 @status_routes.get(
-    "/all_statuses",
+    "/statuses",
     response_model=list[StatusSchema],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
@@ -22,7 +22,7 @@ async def get_all_statuses() -> list[StatusSchema]:
     return all_statuses
 
 @status_routes.get(
-    "/status/{status_id}",
+    "/statuses/{id}",
     response_model=StatusSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
@@ -36,7 +36,7 @@ async def get_status_by_id(status_id: int) -> StatusSchema:
     return status
 
 @status_routes.post(
-    "/add_status",
+    "/statuses",
     response_model=StatusSchema,
     status_code=status.HTTP_201_CREATED,
     dependencies = [Depends(check_for_admin_access)],
@@ -53,7 +53,7 @@ async def add_status(
     return new_status
 
 @status_routes.put(
-    "/update_status/{status_id}",
+    "/statuses/{id}",
     response_model=StatusSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
@@ -77,7 +77,7 @@ async def update_status(
     return updated_status
 
 @status_routes.delete(
-    "/delete_status/{status_id}",
+    "/statuses/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(check_for_admin_access)],
 )

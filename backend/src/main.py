@@ -13,8 +13,8 @@ from project.api.user_routes import user_routes
 from project.api.document_routes import document_routes
 from project.api.standard_routes import standard_routes
 from project.api.check_routes import check_routes
-from project.api.report_routes import report_routes
-from project.api.review_routes import review_routes
+# from project.api.report_routes import report_routes
+# from project.api.review_routes import review_routes
 from project.api.status_routes import status_routes
 from project.api.mistake_type_routes import mistake_type_routes
 from project.api.mistake_routes import mistake_routes
@@ -102,12 +102,12 @@ def create_app() -> FastAPI:
     app.include_router(document_routes, tags=["Documents"])
     app.include_router(standard_routes, tags=["Standards"])
     app.include_router(check_routes, tags=["Check"])
-    app.include_router(report_routes, tags=["Reports"])
-    app.include_router(review_routes, tags=["Review"])
+    # app.include_router(report_routes, tags=["Reports"])
+    # app.include_router(review_routes, tags=["Review"])
     app.include_router(status_routes, tags=["Status"])
     app.include_router(mistake_type_routes, tags=["Mistake Type"])
     app.include_router(mistake_routes, tags=["Mistake"])
-    app.include_router(gost_check_router, tags=["Gost"])
+    app.include_router(gost_check_router, tags=["GOST Check"])
     app.include_router(rule_extract_router, tags=["Rules"])
     app.include_router(semantic_check_router, tags=["Semantic Check"])
 

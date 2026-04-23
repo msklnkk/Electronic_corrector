@@ -1,5 +1,6 @@
 # backend/src/project/api/standard_routes.py
 from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
 
 from project.api.depends import (
     database,
@@ -12,9 +13,13 @@ from project.core.exceptions import StandardNotFound, StandardAlreadyExists
 
 standard_routes = APIRouter()
 
+def utc_now_naive() -> datetime:
+    """Возвращает текущий UTC-время как naive datetime (совместимо с TIMESTAMP WITHOUT TIME ZONE)"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 @standard_routes.get(
-    "/all_standards",
+    "/standards",
     response_model=list[StandardSchema],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
@@ -27,7 +32,7 @@ async def get_all_standards() -> list[StandardSchema]:
 
 
 @standard_routes.get(
-    "/standard/{standart_id}",
+    "/standards/{id}",
     response_model=StandardSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
@@ -47,7 +52,7 @@ async def get_standard_by_id(standart_id: int) -> StandardSchema:
 
 
 @standard_routes.get(
-    "/standard_by_name_version",
+    "/standard/version",
     response_model=StandardSchema | None,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
@@ -70,7 +75,7 @@ async def get_standard_by_name_version(
 
 
 @standard_routes.post(
-    "/add_standard",
+    "/standards",
     response_model=StandardSchema,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(check_for_admin_access)],
@@ -79,6 +84,9 @@ async def add_standard(
     standard_dto: StandardCreate,
 ) -> StandardSchema:
     try:
+        if standard_dto.created_at is None or getattr(standard_dto.created_at, 'tzinfo', None) is not None:
+            standard_dto.created_at = utc_now_naive()
+
         async with database.session() as session:
             new_standard = await standard_repo.create_standard(
                 session=session,
@@ -95,7 +103,7 @@ async def add_standard(
 
 
 @standard_routes.put(
-    "/update_standard/{standart_id}",
+    "/standards/{id}",
     response_model=StandardSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
@@ -105,6 +113,9 @@ async def update_standard(
     standard_dto: StandardCreate,
 ) -> StandardSchema:
     try:
+        if standard_dto.created_at is None or getattr(standard_dto.created_at, 'tzinfo', None) is not None:
+            standard_dto.created_at = utc_now_naive()
+
         async with database.session() as session:
             updated_standard = await standard_repo.update_standard(
                 session=session,
@@ -126,7 +137,7 @@ async def update_standard(
 
 
 @standard_routes.delete(
-    "/delete_standard/{standart_id}",
+    "/standards/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(check_for_admin_access)],
 )

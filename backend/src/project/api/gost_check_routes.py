@@ -28,7 +28,7 @@ from sqlalchemy import select as sa_select
 from project.gost_checker.checker import GOSTDocumentChecker
 from project.gost_checker.models import RuleSeverity
 
-router = APIRouter(prefix="/gost-check", tags=["GOST Check"])
+router = APIRouter(prefix="/gost-check")
 
 
 @router.get("/standards", response_model=list[GostStandardOption])
@@ -132,7 +132,7 @@ async def start_gost_check(
         )
 
 
-@router.get("/status/{document_id}", response_model=GostCheckStatus)
+@router.get("/status/{id}", response_model=GostCheckStatus)
 async def get_gost_check_status(
     document_id: int,
     current_user: Users = Depends(get_current_user),
@@ -176,7 +176,7 @@ async def get_gost_check_status(
         )
 
 
-@router.get("/result/{check_id}", response_model=GostCheckResult)
+@router.get("/result/{id}", response_model=GostCheckResult)
 async def get_gost_check_result(
     check_id: int,
     current_user: Users = Depends(get_current_user),

@@ -14,7 +14,7 @@ mistake_routes = APIRouter()
 
 
 @mistake_routes.get(
-    "/all_mistakes",
+    "/mistakes",
     response_model=list[MistakeSchema],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
@@ -25,7 +25,7 @@ async def get_all_mistakes() -> list[MistakeSchema]:
     return all_mistakes
 
 @mistake_routes.get(
-    "/mistake/{mistake_id}",
+    "/mistakes/{id}",
     response_model=MistakeSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
@@ -53,18 +53,18 @@ async def get_mistake_by_id(
     return mistake
 
 @mistake_routes.get(
-    "/mistakes/document/{document_id}",
+    "/mistakes/document/{id}",
     response_model=list[MistakeSchema],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
 )
 async def get_mistakes_by_document_id(
-    document_id: int,
+    id: int,
     current_user: UserSchema = Depends(get_current_user),
 ) -> list[MistakeSchema]:
     try:
         async with database.session() as session:
-            document = await document_repo.get_document_by_id(session=session, document_id=document_id)
+            document = await document_repo.get_document_by_id(session=session, document_id=id)
     except DocumentNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)
 
@@ -72,11 +72,11 @@ async def get_mistakes_by_document_id(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа")
 
     async with database.session() as session:
-        mistakes = await mistake_repo.get_mistakes_by_document_id(session=session, document_id=document_id)
+        mistakes = await mistake_repo.get_mistakes_by_document_id(session=session, document_id=id)
         return mistakes
 
 @mistake_routes.get(
-    "/mistakes/type/{mistake_type_id}",
+    "/mistakes/type/{id}",
     response_model=list[MistakeSchema],
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(get_current_user)],
@@ -107,7 +107,7 @@ async def get_mistakes_by_mistake_type_id(
     return filtered
 
 @mistake_routes.post(
-    "/add_mistake",
+    "/mistakes",
     response_model=MistakeSchema,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(check_for_admin_access)],
@@ -124,20 +124,20 @@ async def add_mistake(
     return new_mistake
 
 @mistake_routes.put(
-    "/update_mistake/{mistake_id}",
+    "/mistakes/{id}",
     response_model=MistakeSchema,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(check_for_admin_access)],
 )
 async def update_mistake(
-    mistake_id: int,
+    id: int,
     mistake_dto: MistakeCreate,
 ) -> MistakeSchema:
     try:
         async with database.session() as session:
             updated_mistake = await mistake_repo.update_mistake(
                 session=session,
-                mistake_id=mistake_id,
+                mistake_id=id,
                 mistake=mistake_dto,
             )
     except MistakeNotFound as error:
@@ -148,15 +148,15 @@ async def update_mistake(
     return updated_mistake
 
 @mistake_routes.delete(
-    "/delete_mistake/{mistake_id}",
+    "/mistakes/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(check_for_admin_access)],
 )
 async def delete_mistake(
-    mistake_id: int,
+    id: int,
 ) -> None:
     try:
         async with database.session() as session:
-            await mistake_repo.delete_mistake(session=session, mistake_id=mistake_id)
+            await mistake_repo.delete_mistake(session=session, mistake_id=id)
     except MistakeNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error.message)

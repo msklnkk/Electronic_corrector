@@ -42,18 +42,18 @@ class StandardRepository:
         standards = await session.scalars(query)
         return [StandardSchema.model_validate(obj=std) for std in standards.all()]
 
-    async def get_standard_by_name_version(
-        self,
-        session: AsyncSession,
-        name: str,
-        version: str | None
-    ) -> Standart | None:
-        # Проверка уникальности стандарта name+version
-        query = select(self._collection).where(
-            self._collection.name == name,
-            self._collection.version == version
-        )
-        return await session.scalar(query)
+    # async def get_standard_by_name_version(
+    #     self,
+    #     session: AsyncSession,
+    #     name: str,
+    #     version: str | None
+    # ) -> Standart | None:
+    #     # Проверка уникальности стандарта name+version
+    #     query = select(self._collection).where(
+    #         self._collection.name == name,
+    #         self._collection.version == version
+    #     )
+    #     return await session.scalar(query)
 
     async def create_standard(self, session: AsyncSession, standard: StandardCreate) -> StandardSchema:
         # Проверяем уникальность name+version
