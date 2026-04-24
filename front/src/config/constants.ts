@@ -8,15 +8,15 @@ export const API_ROUTES = {
     LOGOUT: '/logout',
   },
   DOCUMENTS: {
-    UPLOAD: '/upload',
+    UPLOAD: '/documents/upload',
     ALL: '/documents',
     BY_USER: (userId: number) => `/documents/user/${userId}`,
     FULL_INFO: (documentId: number) => `/documents/full-info/${documentId}`,
     // MISTAKES: (documentId: number) => `/mistakes/${documentId}`,
     CHECK_START: '/gost-check/start',
     GOST_STANDARDS: '/gost-check/standards',
-    CHECK_STATUS: (documentId: number) => `/gost-check/status/${documentId}`,
-    CHECK_RESULT: (checkId: string) => `/gost-check/result/${checkId}`,
+    CHECK_STATUS: (documentId: number) => `/gost-check/status/${documentId}?document_id=${documentId}`,
+    CHECK_RESULT: (checkId: string) => `/gost-check/result/${checkId}?check_id=${checkId}`,
     SEMANTIC_CHECK: (documentId: number, rulesetCode: string) =>
       `/semantic-check/${documentId}?ruleset_code=${encodeURIComponent(rulesetCode)}`,
     SEMANTIC_RULESETS: "/semantic-check/rulesets",

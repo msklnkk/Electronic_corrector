@@ -60,7 +60,7 @@ async def register(user: AuthCredential) -> Token:
         await session.refresh(db_user)
 
         # Генерируем токен
-        token_data = {"sub": db_user.email}
+        token_data = {"sub": db_user.email, "user_id": db_user.user_id}
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         token_data.update({"exp": expire})
         access_token = jwt.encode(
@@ -94,7 +94,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> T
         # Генерируем токен
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         expire = datetime.now(timezone.utc) + access_token_expires
-        token_data = {"sub": user.email, "exp": expire}
+        token_data = {"sub": user.email, "user_id": user.user_id, "exp": expire}
         access_token = jwt.encode(
             claims=token_data,
             key=settings.SECRET_AUTH_KEY.get_secret_value(),

@@ -210,10 +210,10 @@ const CheckDocumentPage: React.FC = () => {
       await pollUntilReady(checkId);
 
       // Переходим на результат только когда готово
-      navigate(API_ROUTES.DOCUMENTS.CHECK_RESULT(checkId));
+      navigate(ROUTES.CHECK_RESULT(String(checkId)));
 
       console.log("✅ check_id получен:", checkId);
-      console.log("🚀 Переход на:", API_ROUTES.DOCUMENTS.CHECK_RESULT(checkId));
+      console.log("🚀 Переход на:", ROUTES.CHECK_RESULT(String(checkId)));
     } catch (err: any) {
       console.error("❌ Ошибка:", err.response?.data);
       alert("Ошибка: " + (err.response?.data?.detail || err.message));

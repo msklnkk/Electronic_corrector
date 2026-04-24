@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "api";
 import type { UserProfile } from "types";
 import { API_ROUTES, ROUTES } from "config/constants";
+import { AuthService } from "services/auth.service";
 import { useAverageCheckTime } from "../hooks/useAverageCheckTime";
 
 const Profile = () => {
@@ -75,7 +76,7 @@ const Profile = () => {
     setAvatarLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      const response = await api.post<UserProfile>("/upload-avatar", formData, {
+      const response = await api.post<UserProfile>(`/users/${user!.user_id}/avatar`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -188,11 +189,19 @@ const Profile = () => {
         return;
       }
 
+      const userId = AuthService.getCurrentUserId();
+      if (!userId) {
+        localStorage.removeItem("access_token");
+        navigate(ROUTES.LOGIN);
+        return;
+      }
+
       try {
-        const response = await api.get<UserProfile>("/me", {
+        const response = await api.get<UserProfile>(`/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
+        AuthService.setUserProfile(response.data);
         localStorage.setItem("user_avatar", response.data.avatar_data ?? "");
       } catch (err: any) {
         if (err.response?.status === 401 || err.response?.status === 403) {
@@ -216,7 +225,7 @@ const Profile = () => {
       setHistoryError(null);
 
       try {
-        const res = await api.get<CheckHistoryItem[]>(`/all_checks`);
+        const res = await api.get<CheckHistoryItem[]>(`/checks`);
         const gostChecks: CheckHistoryItem[] = (res.data ?? []).map((c) => ({ ...c, type: "gost" as const }));
 
         // Кастомные проверки из localStorage
@@ -239,7 +248,7 @@ const Profile = () => {
           new Set(last.filter((c) => c.type !== "custom").map((c) => c.document_id))
         );
         const docs = await Promise.all(
-          uniqueDocIds.map((docId) => api.get<any>(`/full-info/${docId}`))
+          uniqueDocIds.map((docId) => api.get<any>(`/documents/full-info/${docId}`))
         );
 
         const docMap = new Map<number, string>();
@@ -549,7 +558,7 @@ const Profile = () => {
                       setPwError(null);
                       setPwSuccess(false);
                       try {
-                        await api.post("/change-password", {
+                        await api.post(`/users/${user.user_id}/password`, {
                           old_password: pwForm.old_password,
                           new_password: pwForm.new_password,
                         });

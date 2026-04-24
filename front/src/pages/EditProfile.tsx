@@ -17,7 +17,8 @@ import { useNavigate } from "react-router-dom";
 
 import { api } from "api";
 import type { UserProfile } from "types";
-import { API_ROUTES, ROUTES } from "config/constants";
+import { ROUTES } from "config/constants";
+import { AuthService } from "services/auth.service";
 
 type UserEditFields = {
   first_name: string;
@@ -55,8 +56,15 @@ const EditProfilePage: React.FC = () => {
         return;
       }
 
+      const userId = AuthService.getCurrentUserId();
+      if (!userId) {
+        localStorage.removeItem("access_token");
+        navigate(ROUTES.LOGIN);
+        return;
+      }
+
       try {
-        const response = await api.get<UserProfile>("/me", {
+        const response = await api.get<UserProfile>(`/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
@@ -112,7 +120,7 @@ const EditProfilePage: React.FC = () => {
       password: fields.password,
   };
 
-      await api.put("/update_me", payload);
+      await api.put(`/users/${user.user_id}`, payload);
       navigate(ROUTES.PROFILE);
     } catch (err: any) {
       console.error("Ошибка обновления профиля:", err?.response?.data || err);

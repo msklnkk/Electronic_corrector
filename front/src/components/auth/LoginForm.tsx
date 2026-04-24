@@ -13,10 +13,9 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-import { useAuth } from 'hooks';                  
-import { api } from 'api';                                 
-import { AuthService } from 'services';               
-import { API_ROUTES } from 'config/constants';   
+import { useAuth } from 'hooks';
+import { api } from 'api';
+import { AuthService } from 'services';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -56,8 +55,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       }
 
       // Загрузка актуального профиля
-      const { data } = await api.get(API_ROUTES.AUTH.ME);           // ← используем константу
-      AuthService.setUserProfile(data);
+      const userId = AuthService.getCurrentUserId();
+      if (userId) {
+        const { data } = await api.get(`/users/${userId}`);
+        AuthService.setUserProfile(data);
+      }
 
       onSuccess?.();
       navigate('/check');
