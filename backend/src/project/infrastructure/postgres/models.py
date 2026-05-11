@@ -71,6 +71,7 @@ class Documents(Base):
     checks: Mapped[list["Check"]] = relationship("Check", back_populates="document", cascade="all, delete-orphan")
 
 
+
 class Standart(Base):
     __tablename__ = "standart"
     standart_id: Mapped[int] = mapped_column(Integer, primary_key=True)
